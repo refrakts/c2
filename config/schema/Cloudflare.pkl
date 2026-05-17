@@ -1,0 +1,15 @@
+module Cloudflare
+
+class Config {
+  /// Cloudflare account ID, 32 hex characters.
+  accountId: String(matches(Regex(#"^[a-f0-9]{32}$"#)))
+
+  /// Workers subdomain (the part before .workers.dev).
+  workerSubdomain: String(length > 0, !contains("."))
+
+  /// Optional zone ID for custom domains.
+  zoneId: String(matches(Regex(#"^[a-f0-9]{32}$"#)))?
+
+  /// API token with Workers Scripts:Edit, KV:Edit, R2:Edit, D1:Edit.
+  apiToken: String(length > 20)
+}

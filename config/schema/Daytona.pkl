@@ -1,0 +1,16 @@
+module Daytona
+
+class Config {
+  /// Daytona REST API base URL.
+  /// Typically "https://app.daytona.io/api"
+  apiUrl: String(matches(Regex(#"^https://.+"#)))
+
+  /// API key with Sandboxes (Read/Write) + Snapshots (Read/Write/Delete).
+  apiKey: String(length > 20)
+
+  /// Name of the seeded base snapshot (created via bootstrap.py).
+  baseSnapshot: String(length > 0)
+
+  /// Optional Daytona target name.
+  target: String?
+}

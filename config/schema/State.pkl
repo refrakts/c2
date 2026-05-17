@@ -1,0 +1,7 @@
+module State
+
+class Config {
+  bucket: String(length > 0)
+  accessKey: String(length > 0)
+  secretKey: String(length > 0)
+}

@@ -1,0 +1,130 @@
+// config.example.pkl
+// Copy this to config.pkl and replace REPLACE_ME values with your real ones.
+// Run `mise run validate` to check your config.
+
+amends "config/schema/Deployment.pkl"
+
+import "config/schema/Daytona.pkl"
+import "config/schema/Linear.pkl"
+import "config/schema/Modal.pkl"
+import "config/schema/Slack.pkl"
+import "config/schema/Vercel.pkl"
+
+deployment {
+  // ─── Basics ──────────────────────────────────────────────────────────
+  name = "my-app" // globally unique, lowercase alphanumeric + hyphens
+  sandboxProvider = "modal" // "modal" | "daytona"
+  webPlatform = "cloudflare" // "vercel" | "cloudflare"
+
+  // Optional branding (uncomment to override defaults)
+  // appName = "Open-Inspect"
+  // appShortName = "Inspect"
+  // appIconUrl = "/branding/logo.svg"
+
+  // ─── Cloudflare (always required) ────────────────────────────────────
+  cloudflare {
+    accountId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // 32 hex chars; find in dashboard URL
+    workerSubdomain = "yourorg" // e.g. "yourorg" (no dots)
+    apiToken = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // Workers Scripts:Edit, KV:Edit, R2:Edit, D1:Edit
+    // zoneId = "REPLACE_ME"           // optional, only for custom domains
+  }
+
+  // ─── GitHub App ──────────────────────────────────────────────────────
+  // Create at: https://github.com/settings/apps
+  github {
+    app {
+      clientId = "Iv1.a" // from GitHub App → Client secrets
+      clientSecret = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      appId = "0" // numeric, from GitHub App settings
+      installationId = "0" // numeric, from install URL
+      privateKey =
+        """
+        -----BEGIN PRIVATE KEY-----
+        REPLACE_ME_WITH_PKCS8_PRIVATE_KEY
+        -----END PRIVATE KEY-----
+        """
+    }
+
+    bot {
+      enabled = false
+      // Required when enabled:
+      // webhookSecret = "REPLACE_ME"   // openssl rand -hex 32
+      // username = "yourapp[bot]"      // your GitHub App's slug + "[bot]"
+    }
+  }
+
+  // ─── Sandbox provider (must match sandboxProvider above) ─────────────
+  modal = new Modal.Config {
+    tokenId = "REPLACE_ME"
+    tokenSecret = "REPLACE_ME"
+    workspace = "abc" // your Modal workspace name
+    apiSecret = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // openssl rand -hex 32 → 64 hex chars
+  }
+
+  // daytona = new Daytona.Config {
+  //   apiUrl = "https://app.daytona.io/api"
+  //   apiKey = "REPLACE_ME"
+  //   baseSnapshot = "REPLACE_ME"
+  //   // target = "default"
+  // }
+
+  // ─── Web platform (required when webPlatform = "vercel") ─────────────
+  // vercel = new Vercel.Config {
+  //   apiToken = "REPLACE_ME"
+  //   teamId = "team_REPLACE_ME"
+  // }
+
+  // ─── Optional: Slack bot ─────────────────────────────────────────────
+  // slack = new Slack.Config {
+  //   enabled = true
+  //   botToken = "xoxb-REPLACE_ME"
+  //   signingSecret = "REPLACE_ME"
+  // }
+
+  // ─── Optional: Linear agent ──────────────────────────────────────────
+  // linear = new Linear.Config {
+  //   enabled = true
+  //   clientId = "REPLACE_ME"
+  //   clientSecret = "REPLACE_ME"
+  //   webhookSecret = "REPLACE_ME"
+  // }
+
+  // ─── Security secrets ────────────────────────────────────────────────
+  // Generate each with: openssl rand -base64 32
+  security {
+    tokenEncryptionKey = "REPLACE_ME_WITH_RANDOM_32_BYTES_AT_LEAST"
+    repoSecretsEncryptionKey = "REPLACE_ME_WITH_RANDOM_32_BYTES_AT_LEAST"
+    internalCallbackSecret = "REPLACE_ME_WITH_RANDOM_32_BYTES_AT_LEAST"
+    nextauthSecret = "REPLACE_ME_WITH_RANDOM_32_BYTES_AT_LEAST"
+  }
+
+  // ─── Access control ──────────────────────────────────────────────────
+  // You MUST set at least one of: allowedUsers, allowedEmailDomains,
+  // or unsafeAllowAllUsers = true. Otherwise validation fails.
+  accessControl {
+    allowedUsers = List("Quantumlyy") // e.g. List("alice", "bob")
+    // allowedEmailDomains = List("yourorg.com")
+    // unsafeAllowAllUsers = true       // wide-open, only if you mean it
+  }
+
+  // ─── API keys ────────────────────────────────────────────────────────
+  anthropicApiKey = "sk-ant-REPLACE_ME"
+
+  // ─── Optional: override R2 media bucket name ─────────────────────────
+  // r2MediaBucketName = "my-pre-created-bucket"
+
+  // ─── Initial deploy (two-phase bootstrap) ────────────────────────────
+  // First-ever deploy: both false. After first successful apply, set both
+  // true and apply again. After that, leave them true.
+  initialDeploy {
+    enableDurableObjectBindings = false
+    enableServiceBindings = false
+  }
+
+  // ─── Terraform state backend (Cloudflare R2) ─────────────────────────
+  state {
+    bucket = "REPLACE_ME-tf-state"
+    accessKey = "REPLACE_ME" // R2 API token access key
+    secretKey = "REPLACE_ME" // R2 API token secret key
+  }
+}

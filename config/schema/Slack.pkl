@@ -1,0 +1,13 @@
+module Slack
+
+class Config {
+  enabled: Boolean = false
+
+  /// Bot token from Slack App OAuth & Permissions page.
+  /// Format: xoxb-<numbers>-<numbers>-<token>
+  botToken: String(matches(Regex(#"^xoxb-\d+-\d+-[a-zA-Z0-9]+$"#)))?
+
+  /// Signing secret from Slack App Basic Information page.
+  /// 32 hex characters.
+  signingSecret: String(matches(Regex(#"^[a-f0-9]{32}$"#)))?
+}

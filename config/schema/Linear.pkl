@@ -1,0 +1,14 @@
+module Linear
+
+class Config {
+  enabled: Boolean = false
+
+  /// OAuth Application Client ID from Linear API settings.
+  clientId: String(length > 0)?
+
+  /// OAuth Application Client Secret.
+  clientSecret: String(length > 0)?
+
+  /// Webhook signing secret from the OAuth Application config.
+  webhookSecret: String(length > 0)?
+}

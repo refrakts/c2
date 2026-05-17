@@ -1,0 +1,100 @@
+open module Deployment
+
+import "Cloudflare.pkl"
+// import "Companion.pkl"
+import "Daytona.pkl"
+import "Github.pkl"
+import "Linear.pkl"
+import "Modal.pkl"
+import "Slack.pkl"
+import "State.pkl"
+import "Vercel.pkl"
+
+class AccessControl {
+  allowedUsers: List<String>(every((u) -> u.matches(Regex(#"^[a-zA-Z0-9-]+$"#)))) = List()
+  allowedEmailDomains: List<String>(every((d) -> d.contains("."))) = List()
+  unsafeAllowAllUsers: Boolean = false
+}
+
+class InitialDeployFlags {
+  enableDurableObjectBindings: Boolean = true
+  enableServiceBindings: Boolean = true
+}
+
+class Security {
+  /// All must be 32+ byte random tokens. Generate: openssl rand -base64 32
+  tokenEncryptionKey: String(length >= 32)
+  repoSecretsEncryptionKey: String(length >= 32)
+  internalCallbackSecret: String(length >= 32)
+  nextauthSecret: String(length >= 32)
+}
+
+class Deployment {
+  name: String(matches(Regex(#"^[a-z0-9][a-z0-9-]{0,40}[a-z0-9]$"#)))
+
+  appName: String?
+  appShortName: String?
+  appIconUrl: String?
+
+  sandboxProvider: "modal" | "daytona"
+  webPlatform: "vercel" | "cloudflare"
+  r2MediaBucketName: String?
+
+  cloudflare: Cloudflare.Config
+  github: Github.Config
+  security: Security
+  accessControl: AccessControl
+  initialDeploy: InitialDeployFlags = new InitialDeployFlags {}
+
+  modal: Modal.Config?
+  daytona: Daytona.Config?
+  vercel: Vercel.Config?
+  slack: Slack.Config?
+  linear: Linear.Config?
+
+  anthropicApiKey: String(startsWith("sk-ant-"))
+  //   companion: Companion.Config
+  state: State.Config
+}
+
+deployment: Deployment
+
+local sandboxError: String? =
+  if (deployment.sandboxProvider == "modal" && deployment.modal == null)
+    "sandboxProvider is 'modal' but no modal config provided"
+  else if (deployment.sandboxProvider == "daytona" && deployment.daytona == null)
+    "sandboxProvider is 'daytona' but no daytona config provided"
+  else null
+
+local webError: String? =
+  if (deployment.webPlatform == "vercel" && deployment.vercel == null)
+    "webPlatform is 'vercel' but no vercel config provided"
+  else if (deployment.webPlatform == "cloudflare" && deployment.cloudflare == null)
+    "webPlatform is 'cloudflare' but no cloudflare config provided"
+  else null
+
+local accessControlError: String? =
+  if (
+    !deployment.accessControl.unsafeAllowAllUsers
+      && deployment.accessControl.allowedUsers.isEmpty
+      && deployment.accessControl.allowedEmailDomains.isEmpty
+  )
+    "accessControl: set allowedUsers, allowedEmailDomains, or unsafeAllowAllUsers = true"
+  else null
+
+local githubBotError: String? =
+  if (
+    deployment.github.bot.enabled
+      && (deployment.github.bot.webhookSecret == null || deployment.github.bot.username == null)
+  )
+    "github.bot is enabled but webhookSecret or username is missing"
+  else null
+
+hidden _errors: List<String?> = List(
+  sandboxError,
+  webError,
+  accessControlError,
+  githubBotError
+)
+
+errors: List<String>(isEmpty) = _errors.filterNonNull() as List<String>

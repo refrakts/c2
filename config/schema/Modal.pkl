@@ -1,0 +1,8 @@
+module Modal
+
+class Config {
+  tokenId: String(length > 0)
+  tokenSecret: String(length > 0)
+  workspace: String(matches(Regex(#"^[a-z0-9][a-z0-9-]*$"#)))
+  apiSecret: String(matches(Regex(#"^[a-f0-9]{64}$"#))) // openssl rand -hex 32
+}

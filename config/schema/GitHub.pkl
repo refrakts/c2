@@ -1,0 +1,23 @@
+module GitHub
+
+class App {
+  clientId: String(matches(Regex(#"^Iv1\.[a-zA-Z0-9]+$|^Iv23li[a-zA-Z0-9]+$"#)))
+  clientSecret: String(length > 20)
+  appId: String(matches(Regex(#"^\d+$"#)))
+  installationId: String(matches(Regex(#"^\d+$"#)))
+
+  /// PKCS#8 PEM. Convert from PKCS#1 with:
+  ///   openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in key.pem
+  privateKey: String(contains("-----BEGIN PRIVATE KEY-----"), contains("-----END PRIVATE KEY-----"))
+}
+
+class Bot {
+  enabled: Boolean = false
+  webhookSecret: String?
+  username: String(matches(Regex(#"^[a-z0-9][a-z0-9-]*\[bot\]$"#)))?
+}
+
+class Config {
+  app: App
+  bot: Bot = new Bot {}
+}

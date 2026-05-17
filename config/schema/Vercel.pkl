@@ -1,0 +1,10 @@
+module Vercel
+
+class Config {
+  /// Personal or team API token from https://vercel.com/account/tokens
+  apiToken: String(length > 20)
+
+  /// Team or personal account ID, usually starts with "team_".
+  /// Find in Account Settings → "Your ID".
+  teamId: String(matches(Regex(#"^team_[a-zA-Z0-9]+$"#)))
+}
