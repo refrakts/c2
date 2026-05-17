@@ -58,7 +58,7 @@ deployment {
     tokenId = "REPLACE_ME"
     tokenSecret = "REPLACE_ME"
     workspace = "abc"                                                              // your Modal workspace name
-    apiSecret = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // openssl rand -hex 32 → 64 hex chars
+    apiSecret = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // openssl rand -hex 32
   }
 
   // daytona = new Daytona.Config {
@@ -90,12 +90,11 @@ deployment {
   // }
 
   // ─── Security secrets ────────────────────────────────────────────────
-  // Generate each with: openssl rand -base64 32
   security {
-    tokenEncryptionKey = "REPLACE_ME_WITH_RANDOM_32_BYTES_AT_LEAST"
-    repoSecretsEncryptionKey = "REPLACE_ME_WITH_RANDOM_32_BYTES_AT_LEAST"
-    internalCallbackSecret = "REPLACE_ME_WITH_RANDOM_32_BYTES_AT_LEAST"
-    nextauthSecret = "REPLACE_ME_WITH_RANDOM_32_BYTES_AT_LEAST"
+    tokenEncryptionKey = "REPLACE_ME_WITH_RANDOM_32_BYTES_AT_LEAST" // openssl rand -base64 32
+    repoSecretsEncryptionKey = "REPLACE_ME_WITH_RANDOM_32_BYTES_AT_LEAST" // openssl rand -base64 32
+    internalCallbackSecret = "REPLACE_ME_WITH_RANDOM_32_BYTES_AT_LEAST" // openssl rand -base64 32
+    nextauthSecret = "REPLACE_ME_WITH_RANDOM_32_BYTES_AT_LEAST" // openssl rand -base64 32
   }
 
   // ─── Access control ──────────────────────────────────────────────────
