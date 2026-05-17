@@ -1,0 +1,37 @@
+---
+- name: Verify mise is installed
+  ansible.builtin.command: mise --version
+  register: mise_version
+  changed_when: false
+  failed_when: mise_version.rc != 0
+
+- name: Verify mise environment is healthy
+  ansible.builtin.command: mise doctor
+  args:
+    chdir: "{{ repo_root }}"
+  register: mise_doctor
+  changed_when: false
+  failed_when: mise_doctor.rc != 0
+
+- name: Verify all mise-managed tools are installed
+  ansible.builtin.command: mise list --installed
+  args:
+    chdir: "{{ repo_root }}"
+  register: mise_list
+  changed_when: false
+
+- name: Show installed tools
+  ansible.builtin.debug:
+    msg: "{{ mise_list.stdout_lines }}"
+
+- name: Verify config.pkl exists
+  ansible.builtin.stat:
+    path: "{{ config_pkl }}"
+  register: config_stat
+  failed_when: not config_stat.stat.exists
+
+- name: Verify config.pkl is not the unmodified example
+  ansible.builtin.command: diff -q "{{ config_pkl }}" "{{ repo_root }}/config.example.pkl"
+  register: diff_result
+  changed_when: false
+  failed_when: diff_result.rc == 0

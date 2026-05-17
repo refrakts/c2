@@ -12,9 +12,9 @@ import "config/schema/Vercel.pkl"
 
 deployment {
   // ─── Basics ──────────────────────────────────────────────────────────
-  name = "my-app" // globally unique, lowercase alphanumeric + hyphens
-  sandboxProvider = "modal" // "modal" | "daytona"
-  webPlatform = "cloudflare" // "vercel" | "cloudflare"
+  name = "my-app"             // globally unique, lowercase alphanumeric + hyphens
+  sandboxProvider = "modal"   // "modal" | "daytona"
+  webPlatform = "cloudflare"  // "vercel" | "cloudflare"
 
   // Optional branding (uncomment to override defaults)
   // appName = "Open-Inspect"
@@ -23,20 +23,20 @@ deployment {
 
   // ─── Cloudflare (always required) ────────────────────────────────────
   cloudflare {
-    accountId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // 32 hex chars; find in dashboard URL
-    workerSubdomain = "yourorg" // e.g. "yourorg" (no dots)
+    accountId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"                                // 32 hex chars; find in dashboard URL
+    workerSubdomain = "yourorg"                                                   // e.g. "yourorg" (no dots)
     apiToken = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // Workers Scripts:Edit, KV:Edit, R2:Edit, D1:Edit
-    // zoneId = "REPLACE_ME"           // optional, only for custom domains
+    // zoneId = "REPLACE_ME"                                                      // optional, only for custom domains
   }
 
   // ─── GitHub App ──────────────────────────────────────────────────────
   // Create at: https://github.com/settings/apps
   github {
     app {
-      clientId = "Iv1.a" // from GitHub App → Client secrets
+      clientId = "Iv1.a"        // from GitHub App → Client secrets
       clientSecret = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      appId = "0" // numeric, from GitHub App settings
-      installationId = "0" // numeric, from install URL
+      appId = "0"               // numeric, from GitHub App settings
+      installationId = "0"      // numeric, from install URL
       privateKey =
         """
         -----BEGIN PRIVATE KEY-----
@@ -57,7 +57,7 @@ deployment {
   modal = new Modal.Config {
     tokenId = "REPLACE_ME"
     tokenSecret = "REPLACE_ME"
-    workspace = "abc" // your Modal workspace name
+    workspace = "abc"                                                              // your Modal workspace name
     apiSecret = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // openssl rand -hex 32 → 64 hex chars
   }
 
@@ -102,9 +102,9 @@ deployment {
   // You MUST set at least one of: allowedUsers, allowedEmailDomains,
   // or unsafeAllowAllUsers = true. Otherwise validation fails.
   accessControl {
-    allowedUsers = List("Quantumlyy") // e.g. List("alice", "bob")
+    allowedUsers = List("Quantumlyy")             // e.g. List("alice", "bob")
     // allowedEmailDomains = List("yourorg.com")
-    // unsafeAllowAllUsers = true       // wide-open, only if you mean it
+    // unsafeAllowAllUsers = true                 // wide-open, only if you mean it
   }
 
   // ─── API keys ────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ deployment {
   // ─── Terraform state backend (Cloudflare R2) ─────────────────────────
   state {
     bucket = "REPLACE_ME-tf-state"
-    accessKey = "REPLACE_ME" // R2 API token access key
-    secretKey = "REPLACE_ME" // R2 API token secret key
+    accessKey = "REPLACE_ME"        // R2 API token access key
+    secretKey = "REPLACE_ME"        // R2 API token secret key
   }
 }

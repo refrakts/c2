@@ -1,0 +1,24 @@
+---
+- name: Deploy background-agents
+  hosts: local
+  connection: local
+  gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/.."
+    config_pkl: "{{ repo_root }}/config.pkl"
+    inputs_json: "{{ repo_root }}/deploy/inputs.json"
+    upstream_dir: "{{ repo_root }}/services/background-agents"
+    deploy_dir: "{{ repo_root }}/deploy"
+
+  tasks:
+    - import_tasks: tasks/00-preflight.yml
+      tags: [preflight]
+
+    - import_tasks: tasks/01-render-config.yml
+      tags: [render, config]
+
+    # - import_tasks: tasks/02-sync-upstream.yml
+    #   tags: [sync, upstream]
+
+    # - import_tasks: tasks/03-build-workers.yml
+    #   tags: [build]

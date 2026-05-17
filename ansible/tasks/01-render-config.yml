@@ -1,0 +1,45 @@
+---
+- name: Ensure deploy directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Validate config.pkl against schema
+  ansible.builtin.command: pkl eval "{{ config_pkl }}"
+  register: pkl_validate
+  changed_when: false
+  # On validation failure, Pkl exits non-zero with errors in stderr.
+  # Ansible surfaces those; no special handling needed.
+
+- name: Render config.pkl to temp file
+  ansible.builtin.shell: pkl eval -f json "{{ repo_root }}/config/render/inputs.pkl" > "{{ inputs_json }}.tmp"
+  changed_when: false
+
+- name: Update inputs.json only if content changed
+  ansible.builtin.copy:
+    src: "{{ inputs_json }}.tmp"
+    dest: "{{ inputs_json }}"
+    remote_src: true
+  register: render_result
+
+- name: Clean up temp file
+  ansible.builtin.file:
+    path: "{{ inputs_json }}.tmp"
+    state: absent
+  changed_when: false
+
+- name: Verify inputs.json is well-formed
+  ansible.builtin.command: "jq -e . {{ inputs_json }}"
+  register: jq_check
+  changed_when: false
+  failed_when: jq_check.rc != 0
+
+- name: Show inputs.json field count
+  ansible.builtin.shell: "jq 'keys | length' {{ inputs_json }}"
+  register: field_count
+  changed_when: false
+
+- name: Confirm render succeeded
+  ansible.builtin.debug:
+    msg: "Rendered {{ field_count.stdout }} fields to {{ inputs_json }}"

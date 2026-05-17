@@ -1,0 +1,95 @@
+/// Renders config.pkl into a flat JSON structure consumed by Terragrunt.
+///
+/// Run: pkl eval -f json config/render/inputs.pkl > deploy/inputs.json
+///
+/// Terragrunt reads the JSON and routes fields:
+///   - Terraform variables (everything except state_*) → `inputs` block
+///   - state_* fields → `remote_state.config` block
+
+@ModuleInfo { minPklVersion = "0.31.0" }
+module Inputs
+
+import "../../config.pkl" as deployment_config
+local c = deployment_config.deployment
+
+// ─── Cloudflare ──────────────────────────────────────────────────────
+cloudflare_api_token        = c.cloudflare.apiToken
+cloudflare_account_id       = c.cloudflare.accountId
+cloudflare_worker_subdomain = c.cloudflare.workerSubdomain
+cloudflare_zone_id          = c.cloudflare.zoneId
+
+// ─── Vercel (empty strings when unused) ──────────────────────────────
+vercel_api_token = if (c.vercel != null) c.vercel.apiToken else ""
+vercel_team_id   = if (c.vercel != null) c.vercel.teamId else ""
+
+// ─── Modal ───────────────────────────────────────────────────────────
+modal_token_id     = if (c.modal != null) c.modal.tokenId else ""
+modal_token_secret = if (c.modal != null) c.modal.tokenSecret else ""
+modal_workspace    = if (c.modal != null) c.modal.workspace else ""
+modal_api_secret   = if (c.modal != null) c.modal.apiSecret else ""
+
+// ─── Daytona ─────────────────────────────────────────────────────────
+daytona_api_url       = if (c.daytona != null) c.daytona.apiUrl else ""
+daytona_api_key       = if (c.daytona != null) c.daytona.apiKey else ""
+daytona_base_snapshot = if (c.daytona != null) c.daytona.baseSnapshot else ""
+
+// ─── GitHub App ──────────────────────────────────────────────────────
+github_client_id           = c.github.app.clientId
+github_client_secret       = c.github.app.clientSecret
+github_app_id              = c.github.app.appId
+github_app_installation_id = c.github.app.installationId
+github_app_private_key     = c.github.app.privateKey
+
+// ─── GitHub Bot ──────────────────────────────────────────────────────
+enable_github_bot     = c.github.bot.enabled
+github_webhook_secret = c.github.bot.webhookSecret ?? ""
+github_bot_username   = c.github.bot.username ?? ""
+
+// ─── Slack ───────────────────────────────────────────────────────────
+enable_slack_bot     = c.slack?.enabled ?? false
+slack_bot_token      = c.slack?.botToken ?? ""
+slack_signing_secret = c.slack?.signingSecret ?? ""
+
+// ─── Linear ──────────────────────────────────────────────────────────
+enable_linear_bot     = c.linear?.enabled ?? false
+linear_client_id      = c.linear?.clientId ?? ""
+linear_client_secret  = c.linear?.clientSecret ?? ""
+linear_webhook_secret = c.linear?.webhookSecret ?? ""
+
+// ─── API keys ────────────────────────────────────────────────────────
+anthropic_api_key = c.anthropicApiKey
+
+// ─── Security ────────────────────────────────────────────────────────
+token_encryption_key        = c.security.tokenEncryptionKey
+repo_secrets_encryption_key = c.security.repoSecretsEncryptionKey
+internal_callback_secret    = c.security.internalCallbackSecret
+nextauth_secret             = c.security.nextauthSecret
+
+// ─── Config ──────────────────────────────────────────────────────────
+sandbox_provider     = c.sandboxProvider
+web_platform         = c.webPlatform
+deployment_name      = c.name
+app_name             = c.appName
+app_short_name       = c.appShortName
+app_icon_url         = c.appIconUrl
+r2_media_bucket_name = c.r2MediaBucketName
+
+// project_root tells upstream where to find the worker bundles relative to
+// terraform's working directory. With Terragrunt sourcing from the upstream
+// path, this needs to be relative to .terragrunt-cache, so we'll handle it
+// in terragrunt.hcl rather than passing it through here.
+
+// ─── Initial deploy flags ────────────────────────────────────────────
+enable_durable_object_bindings = c.initialDeploy.enableDurableObjectBindings
+enable_service_bindings        = c.initialDeploy.enableServiceBindings
+
+// ─── Access control ──────────────────────────────────────────────────
+// Upstream's variables expect comma-separated strings; convert from lists.
+allowed_users          = c.accessControl.allowedUsers.join(",")
+allowed_email_domains  = c.accessControl.allowedEmailDomains.join(",")
+unsafe_allow_all_users = c.accessControl.unsafeAllowAllUsers
+
+// ─── State backend (consumed by terragrunt.hcl, not Terraform itself) ─
+state_bucket     = c.state.bucket
+state_access_key = c.state.accessKey
+state_secret_key = c.state.secretKey

@@ -6,6 +6,11 @@ ansible = "13.6.0"
 terraform = "1.15.3"
 terragrunt = "1.0.4"
 
+[tasks.deploy]
+description = "Run the deploy playbook"
+dir = "{{ config_root }}/ansible"
+run = "ansible-playbook deploy.yml"
+
 [settings]
 lockfile = true
 experimental = true
