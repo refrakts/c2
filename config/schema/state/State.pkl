@@ -1,7 +1,13 @@
 open module State
 
 class State {
+  region: String(length > 0)
+
   bucket: String(length > 0)
+  accountId: String(length > 0)
+
   accessKey: String(length > 0)
   secretKey: String(length > 0)
+
+  passphrase: String(length >= 32)
 }

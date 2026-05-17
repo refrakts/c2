@@ -126,9 +126,12 @@ deployment {
   }
 }
 
-// ─── Terraform state backend (Cloudflare R2) ─────────────────────────
+// ─── Pulumi state backend (Cloudflare R2) ─────────────────────────
 state {
-  bucket = "constructor-tf-state"
-  accessKey = "REPLACE_ME"        // R2 API token access key
-  secretKey = "REPLACE_ME"        // R2 API token secret key
+  region = "auto"
+  bucket = "constructor-pulumi-state"
+  accountId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  accessKey = "REPLACE_ME"                                                        // R2 API token access key
+  secretKey = "REPLACE_ME"                                                        // R2 API token secret key
+  passphrase = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // openssl rand -hex 32
 }

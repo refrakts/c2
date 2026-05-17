@@ -88,8 +88,3 @@ enable_service_bindings        = d.initialDeploy.enableServiceBindings
 allowed_users          = d.accessControl.allowedUsers.join(",")
 allowed_email_domains  = d.accessControl.allowedEmailDomains.join(",")
 unsafe_allow_all_users = d.accessControl.unsafeAllowAllUsers
-
-// ─── State backend (consumed by terragrunt.hcl, not Terraform itself) ─
-state_bucket     = c.state.bucket
-state_access_key = c.state.accessKey
-state_secret_key = c.state.secretKey

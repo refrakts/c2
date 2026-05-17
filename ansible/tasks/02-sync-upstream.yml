@@ -3,7 +3,7 @@
   ansible.builtin.debug:
     msg: "Using background-agents at {{ pinned_sha }}"
 
-- name: Ensure .terragrunt-source/ parent exists
+- name: Ensure .services/ parent exists
   ansible.builtin.file:
     path: "{{ work_dir | dirname }}"
     state: directory

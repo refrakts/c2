@@ -8,8 +8,9 @@
     config_pkl: "{{ repo_root }}/config.pkl"
     config_example_pkl: "{{ repo_root }}/config.example.pkl"
     inputs_json: "{{ repo_root }}/deploy/inputs.json"
+    state_json: "{{ repo_root }}/deploy/state.json"
     upstream_dir: "{{ repo_root }}/services/background-agents"
-    work_dir: "{{ repo_root }}/.terragrunt-source/background-agents"
+    work_dir: "{{ repo_root }}/.services/background-agents"
     deploy_dir: "{{ repo_root }}/deploy"
 
   tasks:

@@ -1,7 +1,6 @@
 config.pkl
+deploy/state.json
+deploy/inputs.json
 
-# Terragrunt working directory (rsynced + patched upstream)
-.terragrunt-source/
-
-# Terragrunt's own cache
-deploy/.terragrunt-cache/
+# Deployment working directory (rsynced + patched upstream)
+.services/

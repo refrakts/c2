@@ -4,7 +4,6 @@ pkl = "0.31.1"
 ansible = "13.6.0"
 "pipx:ansible-playbook-grapher" = "2.10.1"
 terraform = "1.15.3"
-terragrunt = "1.0.4"
 
 [tasks.deploy]
 description = "Run the deploy playbook"
