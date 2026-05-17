@@ -31,3 +31,6 @@
 
     - import_tasks: tasks/03-bootstrap-ba.yml
       tags: [bootstrap, build]
+
+    - import_tasks: tasks/04-terraform-init.yml
+      tags: [init, terraform]

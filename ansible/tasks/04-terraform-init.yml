@@ -1,0 +1,57 @@
+---
+- name: Compute terraform paths
+  ansible.builtin.set_fact:
+    ba_tf_dir: "{{ work_root }}/background-agents/terraform/environments/production"
+
+- name: Load rendered inputs and state
+  ansible.builtin.set_fact:
+    tf_inputs: "{{ lookup('file', inputs_json) | from_json }}"
+    tf_state: "{{ lookup('file', state_json) | from_json }}"
+
+- name: Render terraform.tfvars
+  ansible.builtin.copy:
+    dest: "{{ ba_tf_dir }}/terraform.tfvars"
+    mode: "0600"
+    content: |
+      {% for key, value in tf_inputs.items() %}
+      {% if value is string and '\n' in value %}
+      {{ key }} = <<-EOF
+      {{ value }}
+      EOF
+      {% else %}
+      {{ key }} = {{ value | to_json }}
+      {% endif %}
+      {% endfor %}
+
+- name: Render backend.tfvars
+  ansible.builtin.copy:
+    dest: "{{ ba_tf_dir }}/backend.tfvars"
+    mode: "0600"
+    content: |
+      bucket     = "{{ tf_state.bucket }}"
+      access_key = "{{ tf_state.access_key }}"
+      secret_key = "{{ tf_state.secret_key }}"
+      endpoints = {
+        s3 = "https://{{ tf_state.account_id }}.r2.cloudflarestorage.com"
+      }
+
+- name: Confirm tfvars rendered
+  ansible.builtin.debug:
+    msg:
+      - "✓ terraform.tfvars → {{ ba_tf_dir }}/terraform.tfvars"
+      - "✓ backend.tfvars  → {{ ba_tf_dir }}/backend.tfvars"
+
+- name: Terraform init
+  ansible.builtin.command:
+    cmd: terraform init -backend-config=backend.tfvars -reconfigure -input=false
+    chdir: "{{ ba_tf_dir }}"
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ tf_state.access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ tf_state.secret_key }}"
+    AWS_REGION: auto
+  register: tf_init_result
+  changed_when: "'Terraform has been successfully initialized' in tf_init_result.stdout"
+
+- name: Show init summary
+  ansible.builtin.debug:
+    msg: "Terraform initialized for {{ ba_tf_dir }}"
