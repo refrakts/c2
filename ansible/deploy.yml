@@ -6,8 +6,10 @@
   vars:
     repo_root: "{{ playbook_dir }}/.."
     config_pkl: "{{ repo_root }}/config.pkl"
+    config_example_pkl: "{{ repo_root }}/config.example.pkl"
     inputs_json: "{{ repo_root }}/deploy/inputs.json"
     upstream_dir: "{{ repo_root }}/services/background-agents"
+    work_dir: "{{ repo_root }}/.terragrunt-source/background-agents"
     deploy_dir: "{{ repo_root }}/deploy"
 
   tasks:
@@ -17,8 +19,5 @@
     - import_tasks: tasks/01-render-config.yml
       tags: [render, config]
 
-    # - import_tasks: tasks/02-sync-upstream.yml
-    #   tags: [sync, upstream]
-
-    # - import_tasks: tasks/03-build-workers.yml
-    #   tags: [build]
+    - import_tasks: tasks/02-sync-upstream.yml
+      tags: [sync, upstream]

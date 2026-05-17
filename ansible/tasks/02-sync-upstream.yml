@@ -1,0 +1,53 @@
+---
+- name: Display upstream version
+  ansible.builtin.debug:
+    msg: "Using background-agents at {{ pinned_sha }}"
+
+- name: Ensure .terragrunt-source/ parent exists
+  ansible.builtin.file:
+    path: "{{ work_dir | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Wipe previous working directory
+  ansible.builtin.file:
+    path: "{{ work_dir }}"
+    state: absent
+
+- name: Create fresh working directory
+  ansible.builtin.file:
+    path: "{{ work_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Copy upstream submodule into working directory
+  ansible.builtin.copy:
+    src: "{{ upstream_dir }}/"
+    dest: "{{ work_dir }}/"
+    remote_src: true
+    mode: preserve
+
+- name: Remove .git from working directory
+  ansible.builtin.file:
+    path: "{{ work_dir }}/.git"
+    state: absent
+
+- name: List patch files
+  ansible.builtin.find:
+    paths: "{{ repo_root }}/patches"
+    patterns: "*.patch"
+    file_type: file
+  register: patch_files
+
+- name: Apply patches to working directory
+  ansible.posix.patch:
+    src: "{{ item.path }}"
+    basedir: "{{ work_dir }}"
+    strip: 1
+  loop: "{{ patch_files.files | sort(attribute='path') }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+
+- name: Confirm patches applied
+  ansible.builtin.debug:
+    msg: "Applied {{ patch_files.matched }} patch(es) to {{ work_dir }}"
