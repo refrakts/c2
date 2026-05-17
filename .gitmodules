@@ -1,0 +1,3 @@
+[submodule "services/background-agents"]
+	path = services/background-agents
+	url = https://github.com/ColeMurray/background-agents.git
