@@ -1,1 +1,7 @@
 config.pkl
+
+# Terragrunt working directory (rsynced + patched upstream)
+.terragrunt-source/
+
+# Terragrunt's own cache
+deploy/.terragrunt-cache/
