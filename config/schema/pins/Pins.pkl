@@ -1,5 +1,0 @@
-open module Pins
-
-class Pins {
-  backgroundAgents: String(matches(Regex(#"^[a-f0-9]{40}$"#)))
-}

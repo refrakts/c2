@@ -1,5 +1,5 @@
 ---
-- name: Deploy background-agents
+- name: Deploy c2 stack
   hosts: local
   connection: local
   gather_facts: false
@@ -9,16 +9,22 @@
     config_example_pkl: "{{ repo_root }}/config.example.pkl"
     inputs_json: "{{ repo_root }}/deploy/inputs.json"
     state_json: "{{ repo_root }}/deploy/state.json"
-    upstream_dir: "{{ repo_root }}/services/background-agents"
-    work_dir: "{{ repo_root }}/.services/background-agents"
+    projects_json: "{{ repo_root }}/deploy/projects.json"
+    work_root: "{{ repo_root }}/.services"
+    patches_root: "{{ repo_root }}/patches"
     deploy_dir: "{{ repo_root }}/deploy"
 
   tasks:
-    - import_tasks: tasks/00-preflight.yml
+    - import_tasks: tasks/00-preflight.yml     # reads config.pkl, sets `projects` fact, enforces pins
       tags: [preflight]
 
-    - import_tasks: tasks/01-render-config.yml
+    - import_tasks: tasks/01-render-config.yml # renders inputs.json, state.json
       tags: [render, config]
 
-    - import_tasks: tasks/02-sync-upstream.yml
+    - name: Sync each project
+      ansible.builtin.include_tasks: tasks/02-sync-upstream.yml
+      loop: "{{ projects }}"                   # fact from preflight
+      loop_control:
+        loop_var: project
+        label: "{{ project.name }}"
       tags: [sync, upstream]

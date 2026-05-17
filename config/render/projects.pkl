@@ -1,0 +1,22 @@
+@ModuleInfo { minPklVersion = "0.31.0" }
+module Projects
+
+import "../../config.pkl" as c
+
+class ProjectEntry {
+  name: String
+  source: String
+  pin: String
+  patches: Boolean
+}
+
+projects: Listing<ProjectEntry> = new Listing {
+  for (key, value in c.projects.toMap()) {
+    new ProjectEntry {
+      name = key
+      source = value.source
+      pin = value.pin
+      patches = value.patches
+    }
+  }
+}

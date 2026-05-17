@@ -10,10 +10,6 @@ import "config/schema/deployment/Modal.pkl"
 import "config/schema/deployment/Slack.pkl"
 import "config/schema/deployment/Vercel.pkl"
 
-pins {
-  backgroundAgents = "a8a14c46a9f0e92b99748787e7f755bca8ff96c7"
-}
-
 deployment {
   // ─── Basics ──────────────────────────────────────────────────────────
   name = "my-app"             // globally unique, lowercase alphanumeric + hyphens

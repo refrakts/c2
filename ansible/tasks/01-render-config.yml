@@ -12,62 +12,13 @@
   # On validation failure, Pkl exits non-zero with errors in stderr.
   # Ansible surfaces those; no special handling needed.
 
-- name: Render config.pkl state inputs to temp file
-  ansible.builtin.shell: pkl eval -f json "{{ repo_root }}/config/render/state.pkl" > "{{ state_json }}.tmp"
-  changed_when: false
-
-- name: Update deploy/state.json only if content changed
-  ansible.builtin.copy:
-    src: "{{ state_json }}.tmp"
-    dest: "{{ state_json }}"
-    remote_src: true
-  register: render_result
-
-- name: Clean up temp file
-  ansible.builtin.file:
-    path: "{{ state_json }}.tmp"
-    state: absent
-  changed_when: false
-
-- name: Verify deploy/state.json is well-formed
-  ansible.builtin.command: "jq -e . {{ state_json }}"
-  register: state_jq_check
-  changed_when: false
-  failed_when: state_jq_check.rc != 0
-
-- name: Show deploy/state.json field count
-  ansible.builtin.shell: "jq 'keys | length' {{ state_json }}"
-  register: state_field_count
-  changed_when: false
-
-- name: Render config.pkl deployment inputs to temp file
-  ansible.builtin.shell: pkl eval -f json "{{ repo_root }}/config/render/inputs.pkl" > "{{ inputs_json }}.tmp"
-  changed_when: false
-
-- name: Update deploy/inputs.json only if content changed
-  ansible.builtin.copy:
-    src: "{{ inputs_json }}.tmp"
-    dest: "{{ inputs_json }}"
-    remote_src: true
-  register: render_result
-
-- name: Clean up temp file
-  ansible.builtin.file:
-    path: "{{ inputs_json }}.tmp"
-    state: absent
-  changed_when: false
-
-- name: Verify deploy/inputs.json is well-formed
-  ansible.builtin.command: "jq -e . {{ inputs_json }}"
-  register: inputs_jq_check
-  changed_when: false
-  failed_when: inputs_jq_check.rc != 0
-
-- name: Show deploy/inputs.json field count
-  ansible.builtin.shell: "jq 'keys | length' {{ inputs_json }}"
-  register: inputs_field_count
-  changed_when: false
-
-- name: Confirm render succeeded
-  ansible.builtin.debug:
-    msg: "Rendered {{ inputs_field_count.stdout }} fields to {{ inputs_json }}"
+- name: Render Pkl -> JSON files
+  ansible.builtin.command:
+    cmd: "pkl eval -f json {{ item.src }} -o {{ item.dst }}"
+  loop:
+    - { src: "{{ repo_root }}/config/render/inputs.pkl",   dst: "{{ inputs_json }}" }
+    - { src: "{{ repo_root }}/config/render/state.pkl",    dst: "{{ state_json }}" }
+    - { src: "{{ repo_root }}/config/render/projects.pkl", dst: "{{ projects_json }}" }
+  loop_control:
+    label: "{{ item.dst | basename }}"
+  changed_when: true

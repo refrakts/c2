@@ -1,6 +1,8 @@
 config.pkl
-deploy/state.json
+
 deploy/inputs.json
+deploy/state.json
+deploy/projects.json
 
 # Deployment working directory (rsynced + patched upstream)
 .services/

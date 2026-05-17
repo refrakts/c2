@@ -1,10 +1,17 @@
 open module Root
 
-import "pins/Pins.pkl"
+import "project/Project.pkl"
 import "deployment/Deployment.pkl"
 import "state/State.pkl"
 
-pins: Pins.Pins
+projects: Mapping<String, Project.Project> = new {
+  ["background-agents"] {
+    source = "services/background-agents"
+    pin = "a8a14c46a9f0e92b99748787e7f755bca8ff96c7"
+    patches = false
+  }
+}
+
 deployment: Deployment.Deployment
 state: State.State
 

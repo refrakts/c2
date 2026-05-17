@@ -1,53 +1,76 @@
 ---
-- name: Display upstream version
-  ansible.builtin.debug:
-    msg: "Using background-agents at {{ pinned_sha }}"
+- name: "[{{ project.name }}] Compute paths"
+  ansible.builtin.set_fact:
+    upstream_dir: "{{ repo_root }}/{{ project.source }}"
+    work_dir: "{{ work_root }}/{{ project.name }}"
+    patches_dir: "{{ patches_root }}/{{ project.name }}"
 
-- name: Ensure .services/ parent exists
+- name: "[{{ project.name }}] Display version"
+  ansible.builtin.debug:
+    msg: "Syncing {{ project.name }} at {{ project.pin }}"
+
+- name: "[{{ project.name }}] Ensure work_root exists"
   ansible.builtin.file:
-    path: "{{ work_dir | dirname }}"
+    path: "{{ work_root }}"
     state: directory
     mode: "0755"
 
-- name: Wipe previous working directory
+- name: "[{{ project.name }}] Wipe previous working directory"
   ansible.builtin.file:
     path: "{{ work_dir }}"
     state: absent
 
-- name: Create fresh working directory
+- name: "[{{ project.name }}] Create fresh working directory"
   ansible.builtin.file:
     path: "{{ work_dir }}"
     state: directory
     mode: "0755"
 
-- name: Copy upstream submodule into working directory
+- name: "[{{ project.name }}] Copy submodule into working directory"
   ansible.builtin.copy:
     src: "{{ upstream_dir }}/"
     dest: "{{ work_dir }}/"
     remote_src: true
     mode: preserve
 
-- name: Remove .git from working directory
+- name: "[{{ project.name }}] Remove .git from working directory"
   ansible.builtin.file:
     path: "{{ work_dir }}/.git"
     state: absent
 
-- name: List patch files
+- name: "[{{ project.name }}] Check for patches directory"
+  ansible.builtin.stat:
+    path: "{{ patches_dir }}"
+  register: patches_dir_stat
+  when: project.patches | default(false)
+
+- name: "[{{ project.name }}] List patch files"
   ansible.builtin.find:
-    paths: "{{ repo_root }}/patches"
+    paths: "{{ patches_dir }}"
     patterns: "*.patch"
     file_type: file
   register: patch_files
+  when:
+    - project.patches | default(false)
+    - patches_dir_stat.stat.exists | default(false)
 
-- name: Apply patches to working directory
+- name: "[{{ project.name }}] Apply patches"
   ansible.posix.patch:
     src: "{{ item.path }}"
     basedir: "{{ work_dir }}"
     strip: 1
-  loop: "{{ patch_files.files | sort(attribute='path') }}"
+  loop: "{{ patch_files.files | default([]) | sort(attribute='path') }}"
   loop_control:
     label: "{{ item.path | basename }}"
+  when:
+    - project.patches | default(false)
+    - patches_dir_stat.stat.exists | default(false)
 
-- name: Confirm patches applied
+- name: "[{{ project.name }}] Confirm result"
   ansible.builtin.debug:
-    msg: "Applied {{ patch_files.matched }} patch(es) to {{ work_dir }}"
+    msg: >-
+      Synced {{ project.name }}
+      {% if project.patches | default(false) and (patches_dir_stat.stat.exists | default(false)) %}
+      with {{ patch_files.files | default([]) | length }} patch(es)
+      {% else %}
+      (no patches){% endif %}

@@ -1,0 +1,51 @@
+---
+- name: "[{{ project.name }}] Current SHA"
+  ansible.builtin.command: git rev-parse HEAD
+  args:
+    chdir: "{{ repo_root }}/{{ project.source }}"
+  register: current_sha
+  changed_when: false
+
+- name: "[{{ project.name }}] Submodule status"
+  ansible.builtin.command: git status --porcelain
+  args:
+    chdir: "{{ repo_root }}/{{ project.source }}"
+  register: submodule_status
+  changed_when: false
+
+- name: "[{{ project.name }}] Skip if already at pin"
+  ansible.builtin.debug:
+    msg: "✓ {{ project.name }} already at {{ project.pin[:8] }}"
+  when: current_sha.stdout == project.pin
+
+- name: "[{{ project.name }}] Fail if dirty and not at pin"
+  ansible.builtin.fail:
+    msg: >-
+      {{ project.name }} is at {{ current_sha.stdout[:8] }} (pinned: {{ project.pin[:8] }})
+      and has uncommitted changes. Resolve before deploying:
+        git -C {{ repo_root }}/{{ project.source }} status
+  when:
+    - current_sha.stdout != project.pin
+    - submodule_status.stdout | length > 0
+
+- name: "[{{ project.name }}] Fetch updates"
+  ansible.builtin.command: git fetch --quiet
+  args:
+    chdir: "{{ repo_root }}/{{ project.source }}"
+  when: current_sha.stdout != project.pin
+  changed_when: true
+
+- name: "[{{ project.name }}] Checkout pinned SHA"
+  ansible.builtin.command: "git checkout --quiet {{ project.pin }}"
+  args:
+    chdir: "{{ repo_root }}/{{ project.source }}"
+  when: current_sha.stdout != project.pin
+  changed_when: true
+
+- name: "[{{ project.name }}] Verify final SHA"
+  ansible.builtin.command: git rev-parse HEAD
+  args:
+    chdir: "{{ repo_root }}/{{ project.source }}"
+  register: final_sha
+  changed_when: false
+  failed_when: final_sha.stdout != project.pin

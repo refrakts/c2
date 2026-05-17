@@ -1,0 +1,12 @@
+open module Project
+
+class Project {
+  /// Submodule path relative to repo root (also where the work_dir name comes from)
+  source: String(length > 0)
+
+  /// SHA pinned in config.example.pkl — preflight enforces this
+  pin: String(length == 40)
+
+  /// Whether patches in patches/<name>/ should be applied to this project
+  patches: Boolean = false
+}
