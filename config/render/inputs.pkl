@@ -9,70 +9,70 @@
 @ModuleInfo { minPklVersion = "0.31.0" }
 module Inputs
 
-import "../../config.pkl" as deployment_config
-local c = deployment_config.deployment
+import "../../config.pkl" as c
+local d = c.deployment
 
 // ─── Cloudflare ──────────────────────────────────────────────────────
-cloudflare_api_token        = c.cloudflare.apiToken
-cloudflare_account_id       = c.cloudflare.accountId
-cloudflare_worker_subdomain = c.cloudflare.workerSubdomain
-cloudflare_zone_id          = c.cloudflare.zoneId
+cloudflare_api_token        = d.cloudflare.apiToken
+cloudflare_account_id       = d.cloudflare.accountId
+cloudflare_worker_subdomain = d.cloudflare.workerSubdomain
+cloudflare_zone_id          = d.cloudflare.zoneId
 
 // ─── Vercel (empty strings when unused) ──────────────────────────────
-vercel_api_token = if (c.vercel != null) c.vercel.apiToken else ""
-vercel_team_id   = if (c.vercel != null) c.vercel.teamId else ""
+vercel_api_token = if (d.vercel != null) d.vercel.apiToken else ""
+vercel_team_id   = if (d.vercel != null) d.vercel.teamId else ""
 
 // ─── Modal ───────────────────────────────────────────────────────────
-modal_token_id     = if (c.modal != null) c.modal.tokenId else ""
-modal_token_secret = if (c.modal != null) c.modal.tokenSecret else ""
-modal_workspace    = if (c.modal != null) c.modal.workspace else ""
-modal_api_secret   = if (c.modal != null) c.modal.apiSecret else ""
+modal_token_id     = if (d.modal != null) d.modal.tokenId else ""
+modal_token_secret = if (d.modal != null) d.modal.tokenSecret else ""
+modal_workspace    = if (d.modal != null) d.modal.workspace else ""
+modal_api_secret   = if (d.modal != null) d.modal.apiSecret else ""
 
 // ─── Daytona ─────────────────────────────────────────────────────────
-daytona_api_url       = if (c.daytona != null) c.daytona.apiUrl else ""
-daytona_api_key       = if (c.daytona != null) c.daytona.apiKey else ""
-daytona_base_snapshot = if (c.daytona != null) c.daytona.baseSnapshot else ""
+daytona_api_url       = if (d.daytona != null) d.daytona.apiUrl else ""
+daytona_api_key       = if (d.daytona != null) d.daytona.apiKey else ""
+daytona_base_snapshot = if (d.daytona != null) d.daytona.baseSnapshot else ""
 
 // ─── GitHub App ──────────────────────────────────────────────────────
-github_client_id           = c.github.app.clientId
-github_client_secret       = c.github.app.clientSecret
-github_app_id              = c.github.app.appId
-github_app_installation_id = c.github.app.installationId
-github_app_private_key     = c.github.app.privateKey
+github_client_id           = d.github.app.clientId
+github_client_secret       = d.github.app.clientSecret
+github_app_id              = d.github.app.appId
+github_app_installation_id = d.github.app.installationId
+github_app_private_key     = d.github.app.privateKey
 
 // ─── GitHub Bot ──────────────────────────────────────────────────────
-enable_github_bot     = c.github.bot.enabled
-github_webhook_secret = c.github.bot.webhookSecret ?? ""
-github_bot_username   = c.github.bot.username ?? ""
+enable_github_bot     = d.github.bot.enabled
+github_webhook_secret = d.github.bot.webhookSecret ?? ""
+github_bot_username   = d.github.bot.username ?? ""
 
 // ─── Slack ───────────────────────────────────────────────────────────
-enable_slack_bot     = c.slack?.enabled ?? false
-slack_bot_token      = c.slack?.botToken ?? ""
-slack_signing_secret = c.slack?.signingSecret ?? ""
+enable_slack_bot     = d.slack?.enabled ?? false
+slack_bot_token      = d.slack?.botToken ?? ""
+slack_signing_secret = d.slack?.signingSecret ?? ""
 
 // ─── Linear ──────────────────────────────────────────────────────────
-enable_linear_bot     = c.linear?.enabled ?? false
-linear_client_id      = c.linear?.clientId ?? ""
-linear_client_secret  = c.linear?.clientSecret ?? ""
-linear_webhook_secret = c.linear?.webhookSecret ?? ""
+enable_linear_bot     = d.linear?.enabled ?? false
+linear_client_id      = d.linear?.clientId ?? ""
+linear_client_secret  = d.linear?.clientSecret ?? ""
+linear_webhook_secret = d.linear?.webhookSecret ?? ""
 
 // ─── API keys ────────────────────────────────────────────────────────
-anthropic_api_key = c.anthropicApiKey
+anthropic_api_key = d.anthropicApiKey
 
 // ─── Security ────────────────────────────────────────────────────────
-token_encryption_key        = c.security.tokenEncryptionKey
-repo_secrets_encryption_key = c.security.repoSecretsEncryptionKey
-internal_callback_secret    = c.security.internalCallbackSecret
-nextauth_secret             = c.security.nextauthSecret
+token_encryption_key        = d.security.tokenEncryptionKey
+repo_secrets_encryption_key = d.security.repoSecretsEncryptionKey
+internal_callback_secret    = d.security.internalCallbackSecret
+nextauth_secret             = d.security.nextauthSecret
 
 // ─── Config ──────────────────────────────────────────────────────────
-sandbox_provider     = c.sandboxProvider
-web_platform         = c.webPlatform
-deployment_name      = c.name
-app_name             = c.appName
-app_short_name       = c.appShortName
-app_icon_url         = c.appIconUrl
-r2_media_bucket_name = c.r2MediaBucketName
+sandbox_provider     = d.sandboxProvider
+web_platform         = d.webPlatform
+deployment_name      = d.name
+app_name             = d.appName
+app_short_name       = d.appShortName
+app_icon_url         = d.appIconUrl
+r2_media_bucket_name = d.r2MediaBucketName
 
 // project_root tells upstream where to find the worker bundles relative to
 // terraform's working directory. With Terragrunt sourcing from the upstream
@@ -80,14 +80,14 @@ r2_media_bucket_name = c.r2MediaBucketName
 // in terragrunt.hcl rather than passing it through here.
 
 // ─── Initial deploy flags ────────────────────────────────────────────
-enable_durable_object_bindings = c.initialDeploy.enableDurableObjectBindings
-enable_service_bindings        = c.initialDeploy.enableServiceBindings
+enable_durable_object_bindings = d.initialDeploy.enableDurableObjectBindings
+enable_service_bindings        = d.initialDeploy.enableServiceBindings
 
 // ─── Access control ──────────────────────────────────────────────────
 // Upstream's variables expect comma-separated strings; convert from lists.
-allowed_users          = c.accessControl.allowedUsers.join(",")
-allowed_email_domains  = c.accessControl.allowedEmailDomains.join(",")
-unsafe_allow_all_users = c.accessControl.unsafeAllowAllUsers
+allowed_users          = d.accessControl.allowedUsers.join(",")
+allowed_email_domains  = d.accessControl.allowedEmailDomains.join(",")
+unsafe_allow_all_users = d.accessControl.unsafeAllowAllUsers
 
 // ─── State backend (consumed by terragrunt.hcl, not Terraform itself) ─
 state_bucket     = c.state.bucket

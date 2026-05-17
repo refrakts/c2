@@ -2,13 +2,17 @@
 // Copy this to config.pkl and replace REPLACE_ME values with your real ones.
 // Run `mise run validate` to check your config.
 
-amends "config/schema/Deployment.pkl"
+amends "config/schema/Root.pkl"
 
-import "config/schema/Daytona.pkl"
-import "config/schema/Linear.pkl"
-import "config/schema/Modal.pkl"
-import "config/schema/Slack.pkl"
-import "config/schema/Vercel.pkl"
+import "config/schema/deployment/Daytona.pkl"
+import "config/schema/deployment/Linear.pkl"
+import "config/schema/deployment/Modal.pkl"
+import "config/schema/deployment/Slack.pkl"
+import "config/schema/deployment/Vercel.pkl"
+
+pins {
+  backgroundAgents = "a8a14c46a9f0e92b99748787e7f755bca8ff96c7"
+}
 
 deployment {
   // ─── Basics ──────────────────────────────────────────────────────────
@@ -120,11 +124,11 @@ deployment {
     enableDurableObjectBindings = false
     enableServiceBindings = false
   }
+}
 
-  // ─── Terraform state backend (Cloudflare R2) ─────────────────────────
-  state {
-    bucket = "REPLACE_ME-tf-state"
-    accessKey = "REPLACE_ME"        // R2 API token access key
-    secretKey = "REPLACE_ME"        // R2 API token secret key
-  }
+// ─── Terraform state backend (Cloudflare R2) ─────────────────────────
+state {
+  bucket = "constructor-tf-state"
+  accessKey = "REPLACE_ME"        // R2 API token access key
+  secretKey = "REPLACE_ME"        // R2 API token secret key
 }
