@@ -112,14 +112,6 @@ deployment {
 
   // ─── Optional: override R2 media bucket name ─────────────────────────
   // r2MediaBucketName = "my-pre-created-bucket"
-
-  // ─── Initial deploy (two-phase bootstrap) ────────────────────────────
-  // First-ever deploy: both false. After first successful apply, set both
-  // true and apply again. After that, leave them true.
-  initialDeploy {
-    enableDurableObjectBindings = false
-    enableServiceBindings = false
-  }
 }
 
 // ─── Pulumi state backend (Cloudflare R2) ─────────────────────────

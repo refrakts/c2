@@ -37,10 +37,6 @@ local baseFields = new Mapping {
   ["app_icon_url"] = d.appIconUrl
   ["r2_media_bucket_name"] = d.r2MediaBucketName
 
-  // Initial deploy flags (Ansible overrides phase 1; defaults apply to phase 2)
-  ["enable_durable_object_bindings"] = d.initialDeploy.enableDurableObjectBindings
-  ["enable_service_bindings"] = d.initialDeploy.enableServiceBindings
-
   // Access control — upstream expects comma-separated strings; convert from lists
   ["allowed_users"] = d.accessControl.allowedUsers.join(",")
   ["allowed_email_domains"] = d.accessControl.allowedEmailDomains.join(",")

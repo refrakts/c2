@@ -1,23 +1,145 @@
 ---
-- name: Compute terraform path
+# Apply terraform with Cloudflare Durable Object bootstrap handling.
+#
+# b-a has a chicken-and-egg problem: workers with Durable Object bindings can't
+# be deployed until the worker exists, and adding bindings later can trigger
+# worker_version replacement, which breaks migration tag continuity server-side.
+#
+# Strategy:
+#   1. Detect fresh deploy via `terraform state list`
+#   2. Fresh: phase 1 (no bindings) → phase 2 (with bindings, targeted to avoid
+#      version replacement)
+#   3. Existing: single apply
+#   4. On phase 2 migration-tag failures: retry with -replace on just the
+#      deployment resource (preserves version, recreates only the deployment)
+
+- name: Compute terraform paths
   ansible.builtin.set_fact:
     ba_tf_dir: "{{ work_root }}/background-agents/terraform/environments/production"
 
-- name: Load state (for env)
+- name: Load rendered state
   ansible.builtin.set_fact:
     tf_state: "{{ lookup('file', state_json) | from_json }}"
 
-- name: Terraform plan
-  ansible.builtin.command:
-    cmd: terraform plan -input=false -var-file=terraform.tfvars
-    chdir: "{{ ba_tf_dir }}"
-  environment:
-    AWS_ACCESS_KEY_ID: "{{ tf_state.access_key }}"
-    AWS_SECRET_ACCESS_KEY: "{{ tf_state.secret_key }}"
-    AWS_REGION: auto
-  register: plan_result
-  changed_when: false
+- name: Define terraform environment
+  ansible.builtin.set_fact:
+    tf_env:
+      AWS_ACCESS_KEY_ID: "{{ tf_state.access_key }}"
+      AWS_SECRET_ACCESS_KEY: "{{ tf_state.secret_key }}"
+      AWS_REGION: auto
 
-- name: Show plan output
+- name: Check existing terraform state
+  ansible.builtin.command:
+    cmd: terraform state list
+    chdir: "{{ ba_tf_dir }}"
+  environment: "{{ tf_env }}"
+  register: tf_state_list
+  changed_when: false
+  failed_when: false
+
+- name: Determine deploy mode
+  ansible.builtin.set_fact:
+    is_fresh_deploy: "{{ (tf_state_list.stdout | trim | length) == 0 }}"
+    has_worker_version: "{{ 'cloudflare_worker_version' in tf_state_list.stdout }}"
+    has_deployment: "{{ 'cloudflare_workers_deployment' in tf_state_list.stdout }}"
+
+- name: Show deploy mode
   ansible.builtin.debug:
-    var: plan_result.stdout_lines
+    msg: >-
+      {% if is_fresh_deploy %}
+      Fresh deployment. Running two-phase apply.
+      {% elif has_worker_version and not has_deployment %}
+      Partial deployment detected (worker_version exists but deployment missing).
+      Recovering by creating just the deployment.
+      {% else %}
+      Existing deployment ({{ tf_state_list.stdout_lines | length }} resources).
+      Running single apply.
+      {% endif %}
+
+# ─── Fresh deploy: phase 1 ─────────────────────────────────────────────────
+# Create resources without DO/service bindings. This establishes the worker
+# and migration v1 server-side without trying to bind to non-existent DOs.
+
+- name: "Phase 1 — apply without bindings (fresh deploy)"
+  ansible.builtin.command:
+    cmd: >-
+      terraform apply -auto-approve -input=false
+      -var-file=terraform.tfvars
+      -var enable_durable_object_bindings=false
+      -var enable_service_bindings=false
+    chdir: "{{ ba_tf_dir }}"
+  environment: "{{ tf_env }}"
+  register: phase1_result
+  when: is_fresh_deploy
+  changed_when: "'Apply complete' in phase1_result.stdout"
+
+# ─── Phase 2 / single apply ────────────────────────────────────────────────
+# Apply with bindings enabled. May fail on migration tag precondition if the
+# binding change forces worker_version replacement — handled by rescue.
+
+- name: Apply with configured bindings
+  block:
+    - name: Run apply
+      ansible.builtin.command:
+        cmd: >-
+          terraform apply -auto-approve -input=false
+          -var-file=terraform.tfvars
+        chdir: "{{ ba_tf_dir }}"
+      environment: "{{ tf_env }}"
+      register: apply_result
+      changed_when: "'Apply complete' in apply_result.stdout"
+
+  rescue:
+    - name: Check for migration tag precondition failure
+      ansible.builtin.set_fact:
+        is_migration_tag_error: >-
+          {{ 'Actor migration tag precondition failed' in apply_result.stderr or
+             'migration tag' in apply_result.stderr | lower }}
+
+    - name: Fail if not a migration tag error
+      ansible.builtin.fail:
+        msg: |
+          terraform apply failed with an unrecognized error.
+          Stderr: {{ apply_result.stderr }}
+      when: not is_migration_tag_error
+
+    - name: Recover — refresh state and re-list
+      ansible.builtin.command:
+        cmd: terraform refresh -input=false -var-file=terraform.tfvars
+      args:
+        chdir: "{{ ba_tf_dir }}"
+      environment: "{{ tf_env }}"
+      changed_when: false
+
+    - name: Re-check state after refresh
+      ansible.builtin.command:
+        cmd: terraform state list
+        chdir: "{{ ba_tf_dir }}"
+      environment: "{{ tf_env }}"
+      register: tf_state_list_after
+      changed_when: false
+
+    - name: Recovery — apply with deployment targeted for replacement
+      ansible.builtin.command:
+        cmd: >-
+          terraform apply -auto-approve -input=false
+          -var-file=terraform.tfvars
+          {% if 'module.control_plane_worker.cloudflare_workers_deployment.this' in tf_state_list_after.stdout %}
+          -replace=module.control_plane_worker.cloudflare_workers_deployment.this
+          {% endif %}
+        chdir: "{{ ba_tf_dir }}"
+      environment: "{{ tf_env }}"
+      register: recovery_result
+      changed_when: "'Apply complete' in recovery_result.stdout"
+
+    - name: Report recovery
+      ansible.builtin.debug:
+        msg: >-
+          Recovered from migration tag precondition failure by replacing only
+          the deployment resource. Worker version preserved.
+
+- name: Apply summary
+  ansible.builtin.debug:
+    msg:
+      - "Fresh deploy: {{ is_fresh_deploy }}"
+      - "Result: {{ (recovery_result.stdout if recovery_result is defined and recovery_result.changed else apply_result.stdout) | regex_search('Apply complete.*$', multiline=True) | default('(no changes)') }}"

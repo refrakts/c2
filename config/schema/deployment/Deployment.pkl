@@ -15,11 +15,6 @@ class AccessControl {
   unsafeAllowAllUsers: Boolean = false
 }
 
-class InitialDeployFlags {
-  enableDurableObjectBindings: Boolean = true
-  enableServiceBindings: Boolean = true
-}
-
 class Security {
   /// All must be 32+ byte random tokens. Generate: openssl rand -base64 32
   tokenEncryptionKey: String(length >= 32)
@@ -43,7 +38,6 @@ class Deployment {
   github: Github.Config
   security: Security
   accessControl: AccessControl
-  initialDeploy: InitialDeployFlags = new InitialDeployFlags {}
 
   modal: Modal.Config?
   daytona: Daytona.Config?
