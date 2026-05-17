@@ -6,3 +6,5 @@ deploy/projects.json
 
 # Deployment working directory (rsynced + patched upstream)
 .services/
+
+.wrangler/

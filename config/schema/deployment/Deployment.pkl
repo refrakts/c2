@@ -15,12 +15,17 @@ class AccessControl {
   unsafeAllowAllUsers: Boolean = false
 }
 
+typealias Base64_32 = String(
+  this.length == 44,
+  this.endsWith("=")
+)
+
 class Security {
   /// All must be 32+ byte random tokens. Generate: openssl rand -base64 32
-  tokenEncryptionKey: String(length >= 32)
-  repoSecretsEncryptionKey: String(length >= 32)
-  internalCallbackSecret: String(length >= 32)
-  nextauthSecret: String(length >= 32)
+  tokenEncryptionKey: Base64_32
+  repoSecretsEncryptionKey: Base64_32
+  internalCallbackSecret: Base64_32
+  nextauthSecret: Base64_32
 }
 
 class Deployment {
