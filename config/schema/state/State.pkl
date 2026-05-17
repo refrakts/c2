@@ -1,6 +1,6 @@
-module State
+open module State
 
-class Config {
+class State {
   bucket: String(length > 0)
   accessKey: String(length > 0)
   secretKey: String(length > 0)

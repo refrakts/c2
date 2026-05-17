@@ -1,0 +1,50 @@
+open module Root
+
+import "pins/Pins.pkl"
+import "deployment/Deployment.pkl"
+import "state/State.pkl"
+
+pins: Pins.Pins
+deployment: Deployment.Deployment
+state: State.State
+
+local sandboxError: String? =
+  if (deployment.sandboxProvider == "modal" && deployment.modal == null)
+    "sandboxProvider is 'modal' but no modal config provided"
+  else if (deployment.sandboxProvider == "daytona" && deployment.daytona == null)
+    "sandboxProvider is 'daytona' but no daytona config provided"
+  else null
+
+local webError: String? =
+  if (deployment.webPlatform == "vercel" && deployment.vercel == null)
+    "webPlatform is 'vercel' but no vercel config provided"
+  else if (deployment.webPlatform == "cloudflare" && deployment.cloudflare == null)
+    "webPlatform is 'cloudflare' but no cloudflare config provided"
+  else null
+
+local accessControlError: String? =
+  if (
+    !deployment.accessControl.unsafeAllowAllUsers
+      && deployment.accessControl.allowedUsers.isEmpty
+      && deployment.accessControl.allowedEmailDomains.isEmpty
+  )
+    "accessControl: set allowedUsers, allowedEmailDomains, or unsafeAllowAllUsers = true"
+  else null
+
+local githubBotError: String? =
+  if (
+    deployment.github.bot.enabled
+      && (deployment.github.bot.webhookSecret == null || deployment.github.bot.username == null)
+  )
+    "github.bot is enabled but webhookSecret or username is missing"
+  else null
+
+hidden _errors: List<String?> = List(
+  sandboxError,
+  webError,
+  accessControlError,
+  githubBotError
+)
+
+errors: List<String>(isEmpty) = _errors.filterNonNull() as List<String>
+
