@@ -1,0 +1,43 @@
+[[tools.ansible]]
+version = "13.6.0"
+backend = "pipx:ansible[uvx=false,pipx_args=--include-deps]"
+
+[[tools."pipx:ansible-playbook-grapher"]]
+version = "2.10.1"
+backend = "pipx:ansible-playbook-grapher"
+
+[[tools.pkl]]
+version = "0.31.1"
+backend = "aqua:apple/pkl"
+
+[tools.pkl.platforms.macos-arm64]
+checksum = "sha256:1b6a5438d9624cd2798a7530721bbbfa27ef72efe5c878a1b6c546c6e7ca0e8f"
+size = 98259056
+url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-macos-aarch64"
+
+[[tools.terraform]]
+version = "1.15.3"
+backend = "aqua:hashicorp/terraform"
+
+[tools.terraform.platforms.macos-arm64]
+checksum = "sha256:b97101c62c11eebd176e83cd42a313336200d54fdd18ce7770f65a5bfb0ab098"
+size = 32836034
+url = "https://releases.hashicorp.com/terraform/1.15.3/terraform_1.15.3_darwin_arm64.zip"
+
+[[tools.terragrunt]]
+version = "1.0.4"
+backend = "aqua:gruntwork-io/terragrunt"
+
+[tools.terragrunt.platforms.macos-arm64]
+checksum = "sha256:0cb4d62624bf150ebe611172a4849304b723185637569f5aba4f4e587a10c0c6"
+size = 79597200
+url = "https://github.com/gruntwork-io/terragrunt/releases/download/v1.0.4/terragrunt_darwin_arm64"
+
+[[tools.uv]]
+version = "0.11.14"
+backend = "aqua:astral-sh/uv"
+
+[tools.uv.platforms.macos-arm64]
+checksum = "sha256:4333af5c0730d94323a7819bbdf87ce92dd07fc857d67fff0059e0fca31b5c02"
+size = 20737296
+url = "https://github.com/astral-sh/uv/releases/download/0.11.14/uv-aarch64-apple-darwin.tar.gz"
