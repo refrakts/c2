@@ -1,0 +1,72 @@
+---
+- name: Compute terraform paths
+  ansible.builtin.set_fact:
+    ba_tf_dir: "{{ work_root }}/background-agents/terraform/environments/production"
+
+- name: Load rendered state (for AWS env)
+  ansible.builtin.set_fact:
+    tf_state: "{{ lookup('file', state_json) | from_json }}"
+
+- name: Define terraform environment
+  ansible.builtin.set_fact:
+    tf_env:
+      AWS_ACCESS_KEY_ID: "{{ tf_state.access_key }}"
+      AWS_SECRET_ACCESS_KEY: "{{ tf_state.secret_key }}"
+      AWS_REGION: auto
+
+- name: Check existing terraform state
+  ansible.builtin.command:
+    cmd: terraform state list
+    chdir: "{{ ba_tf_dir }}"
+  environment: "{{ tf_env }}"
+  register: tf_state_list
+  changed_when: false
+  failed_when: false  # Empty state isn't an error.
+
+- name: Determine deploy mode
+  ansible.builtin.set_fact:
+    is_fresh_deploy: "{{ (tf_state_list.stdout | trim | length) == 0 }}"
+
+- name: Show deploy mode
+  ansible.builtin.debug:
+    msg: >-
+      {% if is_fresh_deploy %}
+      Fresh deployment detected (no resources in state).
+      Running two-phase apply.
+      {% else %}
+      Existing deployment ({{ tf_state_list.stdout_lines | length }} resources in state).
+      Running single apply.
+      {% endif %}
+
+# ─── Fresh deploy: phase 1 with bindings forced false ─────────────────────────
+
+- name: "Phase 1 — apply without bindings (fresh deploy)"
+  ansible.builtin.command:
+    cmd: >-
+      terraform apply -auto-approve -input=false
+      -var-file=terraform.tfvars
+      -var enable_durable_object_bindings=false
+      -var enable_service_bindings=false
+    chdir: "{{ ba_tf_dir }}"
+  environment: "{{ tf_env }}"
+  register: phase1_result
+  when: is_fresh_deploy
+  changed_when: "'Apply complete' in phase1_result.stdout"
+
+# ─── Always: apply with user-configured bindings (defaults to true) ───────────
+
+- name: Apply with configured bindings
+  ansible.builtin.command:
+    cmd: >-
+      terraform apply -auto-approve -input=false
+      -var-file=terraform.tfvars
+    chdir: "{{ ba_tf_dir }}"
+  environment: "{{ tf_env }}"
+  register: apply_result
+  changed_when: "'Apply complete' in apply_result.stdout"
+
+- name: Apply summary
+  ansible.builtin.debug:
+    msg:
+      - "Fresh deploy: {{ is_fresh_deploy }}"
+      - "{{ apply_result.stdout_lines | select('match', '^(Apply complete|No changes)') | list | first | default('(unknown)') }}"

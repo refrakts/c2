@@ -15,7 +15,7 @@
     deploy_dir: "{{ repo_root }}/deploy"
 
   tasks:
-    - import_tasks: tasks/00-preflight.yml     # reads config.pkl, sets `projects` fact, enforces pins
+    - import_tasks: tasks/00-preflight.yml # reads config.pkl, sets `projects` fact, enforces pins
       tags: [preflight]
 
     - import_tasks: tasks/01-render-config.yml # renders inputs.json, state.json
@@ -23,7 +23,7 @@
 
     - name: Sync each project
       ansible.builtin.include_tasks: tasks/02-sync-upstream.yml
-      loop: "{{ projects }}"                   # fact from preflight
+      loop: "{{ projects }}" # fact from preflight
       loop_control:
         loop_var: project
         label: "{{ project.name }}"
@@ -34,3 +34,9 @@
 
     - import_tasks: tasks/04-terraform-init.yml
       tags: [init, terraform]
+
+    - import_tasks: tasks/05a-terraform-plan.yml
+      tags: [plan, terraform]
+
+    - import_tasks: tasks/05-terraform-apply.yml
+      tags: [apply, terraform]

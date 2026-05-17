@@ -1,90 +1,133 @@
-/// Renders config.pkl into a flat JSON structure consumed by Terragrunt.
-///
-/// Run: pkl eval -f json config/render/inputs.pkl > deploy/inputs.json
-///
-/// Terragrunt reads the JSON and routes fields:
-///   - Terraform variables (everything except state_*) → `inputs` block
-///   - state_* fields → `remote_state.config` block
-
 @ModuleInfo { minPklVersion = "0.31.0" }
 module Inputs
 
 import "../../config.pkl" as c
 local d = c.deployment
 
-// ─── Cloudflare ──────────────────────────────────────────────────────
-cloudflare_api_token        = d.cloudflare.apiToken
-cloudflare_account_id       = d.cloudflare.accountId
-cloudflare_worker_subdomain = d.cloudflare.workerSubdomain
-cloudflare_zone_id          = d.cloudflare.zoneId
+// ─── Always-present fields ──────────────────────────────────────────────
+local baseFields = new Mapping {
+  // Cloudflare
+  ["cloudflare_api_token"] = d.cloudflare.apiToken
+  ["cloudflare_account_id"] = d.cloudflare.accountId
+  ["cloudflare_worker_subdomain"] = d.cloudflare.workerSubdomain
+  ["cloudflare_zone_id"] = d.cloudflare.zoneId
 
-// ─── Vercel (empty strings when unused) ──────────────────────────────
-vercel_api_token = if (d.vercel != null) d.vercel.apiToken else ""
-vercel_team_id   = if (d.vercel != null) d.vercel.teamId else ""
+  // GitHub App (required — used for OAuth even when bot disabled)
+  ["github_client_id"] = d.github.app.clientId
+  ["github_client_secret"] = d.github.app.clientSecret
+  ["github_app_id"] = d.github.app.appId
+  ["github_app_installation_id"] = d.github.app.installationId
+  ["github_app_private_key"] = d.github.app.privateKey
 
-// ─── Modal ───────────────────────────────────────────────────────────
-modal_token_id     = if (d.modal != null) d.modal.tokenId else ""
-modal_token_secret = if (d.modal != null) d.modal.tokenSecret else ""
-modal_workspace    = if (d.modal != null) d.modal.workspace else ""
-modal_api_secret   = if (d.modal != null) d.modal.apiSecret else ""
+  // API keys
+  ["anthropic_api_key"] = d.anthropicApiKey
 
-// ─── Daytona ─────────────────────────────────────────────────────────
-daytona_api_url       = if (d.daytona != null) d.daytona.apiUrl else ""
-daytona_api_key       = if (d.daytona != null) d.daytona.apiKey else ""
-daytona_base_snapshot = if (d.daytona != null) d.daytona.baseSnapshot else ""
+  // Security
+  ["token_encryption_key"] = d.security.tokenEncryptionKey
+  ["repo_secrets_encryption_key"] = d.security.repoSecretsEncryptionKey
+  ["internal_callback_secret"] = d.security.internalCallbackSecret
+  ["nextauth_secret"] = d.security.nextauthSecret
 
-// ─── GitHub App ──────────────────────────────────────────────────────
-github_client_id           = d.github.app.clientId
-github_client_secret       = d.github.app.clientSecret
-github_app_id              = d.github.app.appId
-github_app_installation_id = d.github.app.installationId
-github_app_private_key     = d.github.app.privateKey
+  // Config
+  ["sandbox_provider"] = d.sandboxProvider
+  ["web_platform"] = d.webPlatform
+  ["deployment_name"] = d.name
+  ["app_name"] = d.appName
+  ["app_short_name"] = d.appShortName
+  ["app_icon_url"] = d.appIconUrl
+  ["r2_media_bucket_name"] = d.r2MediaBucketName
 
-// ─── GitHub Bot ──────────────────────────────────────────────────────
-enable_github_bot     = d.github.bot.enabled
-github_webhook_secret = d.github.bot.webhookSecret ?? ""
-github_bot_username   = d.github.bot.username ?? ""
+  // Initial deploy flags (Ansible overrides phase 1; defaults apply to phase 2)
+  ["enable_durable_object_bindings"] = d.initialDeploy.enableDurableObjectBindings
+  ["enable_service_bindings"] = d.initialDeploy.enableServiceBindings
 
-// ─── Slack ───────────────────────────────────────────────────────────
-enable_slack_bot     = d.slack?.enabled ?? false
-slack_bot_token      = d.slack?.botToken ?? ""
-slack_signing_secret = d.slack?.signingSecret ?? ""
+  // Access control — upstream expects comma-separated strings; convert from lists
+  ["allowed_users"] = d.accessControl.allowedUsers.join(",")
+  ["allowed_email_domains"] = d.accessControl.allowedEmailDomains.join(",")
+  ["unsafe_allow_all_users"] = d.accessControl.unsafeAllowAllUsers
+}
 
-// ─── Linear ──────────────────────────────────────────────────────────
-enable_linear_bot     = d.linear?.enabled ?? false
-linear_client_id      = d.linear?.clientId ?? ""
-linear_client_secret  = d.linear?.clientSecret ?? ""
-linear_webhook_secret = d.linear?.webhookSecret ?? ""
+// ─── Conditional sections ───────────────────────────────────────────────
 
-// ─── API keys ────────────────────────────────────────────────────────
-anthropic_api_key = d.anthropicApiKey
+local vercelFields: Mapping<String, Any> =
+  if (d.vercel != null)
+    new Mapping {
+      ["vercel_api_token"] = d.vercel.apiToken
+      ["vercel_team_id"] = d.vercel.teamId
+    }
+  else
+    new Mapping {}
 
-// ─── Security ────────────────────────────────────────────────────────
-token_encryption_key        = d.security.tokenEncryptionKey
-repo_secrets_encryption_key = d.security.repoSecretsEncryptionKey
-internal_callback_secret    = d.security.internalCallbackSecret
-nextauth_secret             = d.security.nextauthSecret
+local modalFields: Mapping<String, Any> =
+  if (d.modal != null)
+    new Mapping {
+      ["modal_token_id"] = d.modal.tokenId
+      ["modal_token_secret"] = d.modal.tokenSecret
+      ["modal_workspace"] = d.modal.workspace
+      ["modal_api_secret"] = d.modal.apiSecret
+    }
+  else
+    new Mapping {}
 
-// ─── Config ──────────────────────────────────────────────────────────
-sandbox_provider     = d.sandboxProvider
-web_platform         = d.webPlatform
-deployment_name      = d.name
-app_name             = d.appName
-app_short_name       = d.appShortName
-app_icon_url         = d.appIconUrl
-r2_media_bucket_name = d.r2MediaBucketName
+local daytonaFields: Mapping<String, Any> =
+  if (d.daytona != null)
+    new Mapping {
+      ["daytona_api_url"] = d.daytona.apiUrl
+      ["daytona_api_key"] = d.daytona.apiKey
+      ["daytona_base_snapshot"] = d.daytona.baseSnapshot
+    }
+  else
+    new Mapping {}
 
-// project_root tells upstream where to find the worker bundles relative to
-// terraform's working directory. With Terragrunt sourcing from the upstream
-// path, this needs to be relative to .terragrunt-cache, so we'll handle it
-// in terragrunt.hcl rather than passing it through here.
+local githubBotFields: Mapping<String, Any> =
+  if (d.github.bot != null && d.github.bot.enabled)
+    new Mapping {
+      ["enable_github_bot"] = true
+      ["github_webhook_secret"] = d.github.bot.webhookSecret
+      ["github_bot_username"] = d.github.bot.username
+    }
+  else
+    new Mapping {
+      ["enable_github_bot"] = false
+    }
 
-// ─── Initial deploy flags ────────────────────────────────────────────
-enable_durable_object_bindings = d.initialDeploy.enableDurableObjectBindings
-enable_service_bindings        = d.initialDeploy.enableServiceBindings
+local slackFields: Mapping<String, Any> =
+  if (d.slack != null && d.slack.enabled)
+    new Mapping {
+      ["enable_slack_bot"] = true
+      ["slack_bot_token"] = d.slack.botToken
+      ["slack_signing_secret"] = d.slack.signingSecret
+    }
+  else
+    new Mapping {
+      ["enable_slack_bot"] = false
+    }
 
-// ─── Access control ──────────────────────────────────────────────────
-// Upstream's variables expect comma-separated strings; convert from lists.
-allowed_users          = d.accessControl.allowedUsers.join(",")
-allowed_email_domains  = d.accessControl.allowedEmailDomains.join(",")
-unsafe_allow_all_users = d.accessControl.unsafeAllowAllUsers
+local linearFields: Mapping<String, Any> =
+  if (d.linear != null && d.linear.enabled)
+    new Mapping {
+      ["enable_linear_bot"] = true
+      ["linear_client_id"] = d.linear.clientId
+      ["linear_client_secret"] = d.linear.clientSecret
+      ["linear_webhook_secret"] = d.linear.webhookSecret
+    }
+  else
+    new Mapping {
+      ["enable_linear_bot"] = false
+    }
+
+// ─── Merge everything into the output ────────────────────────────────────
+output {
+  value =
+    (
+      baseFields.toMap()
+        + vercelFields.toMap()
+        + modalFields.toMap()
+        + daytonaFields.toMap()
+        + githubBotFields.toMap()
+        + slackFields.toMap()
+        + linearFields.toMap()
+    ).toMapping()
+
+  renderer = new JsonRenderer {}
+}

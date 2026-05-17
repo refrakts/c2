@@ -13,9 +13,19 @@ ansible = "13.6.0"
 "pipx:ansible-playbook-grapher" = "2.10.1"
 
 [tasks.deploy]
-description = "Run the deploy playbook"
+description = "Full deploy: preflight, render, sync, build, init, apply"
 dir = "{{ config_root }}/ansible"
 run = "ansible-playbook deploy.yml"
+
+[tasks.apply]
+description = "Re-run just the terraform apply step"
+dir = "{{ config_root }}/ansible"
+run = "ansible-playbook deploy.yml --tags=apply"
+
+[tasks.plan]
+description = "Render tfvars and show what would change"
+dir = "{{ config_root }}/ansible"
+run = "ansible-playbook deploy.yml --tags=render,init,plan"
 
 [settings]
 lockfile = true
