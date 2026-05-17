@@ -1,9 +1,16 @@
 [tools]
+# Languages / runtimes
+node = "22"
+python = "3.12"
 uv = "latest"
+"npm:wrangler" = "latest"
+"pipx:modal" = "latest"
+
+# Infra / config
 pkl = "0.31.1"
+terraform = "1.15.3"
 ansible = "13.6.0"
 "pipx:ansible-playbook-grapher" = "2.10.1"
-terraform = "1.15.3"
 
 [tasks.deploy]
 description = "Run the deploy playbook"

@@ -28,3 +28,6 @@
         loop_var: project
         label: "{{ project.name }}"
       tags: [sync, upstream]
+
+    - import_tasks: tasks/03-bootstrap-ba.yml
+      tags: [bootstrap, build]
