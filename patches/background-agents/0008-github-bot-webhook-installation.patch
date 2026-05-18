@@ -1,0 +1,140 @@
+diff --git a/packages/github-bot/src/handlers.ts b/packages/github-bot/src/handlers.ts
+index 9f61676..c129aa2 100644
+--- a/packages/github-bot/src/handlers.ts
++++ b/packages/github-bot/src/handlers.ts
+@@ -1,4 +1,9 @@
+-import { buildInternalAuthHeaders, resolveAppName } from "@open-inspect/shared";
++import {
++  buildInternalAuthHeaders,
++  parseInstallationMap,
++  resolveAppName,
++  resolveInstallationId,
++} from "@open-inspect/shared";
+ import type {
+   Env,
+   PullRequestOpenedPayload,
+@@ -102,6 +107,20 @@ function fireAndForgetReaction(
+   );
+ }
+ 
++function resolveWebhookInstallationId(
++  env: Env,
++  owner: string,
++  payloadInstallationId?: number
++): string {
++  return payloadInstallationId != null
++    ? String(payloadInstallationId)
++    : resolveInstallationId(
++        owner,
++        parseInstallationMap(env.GITHUB_APP_INSTALLATION_MAP),
++        env.GITHUB_APP_INSTALLATION_ID
++      );
++}
++
+ type CallerGatingResult =
+   | { allowed: true; ghToken: string; headers: Record<string, string> }
+   | {
+@@ -117,7 +136,8 @@ async function resolveCallerGating(
+   repoName: string,
+   log: Logger,
+   traceId: string,
+-  repoFullName: string
++  repoFullName: string,
++  payloadInstallationId?: number
+ ): Promise<CallerGatingResult> {
+   if (config.allowedTriggerUsers !== null) {
+     if (!config.allowedTriggerUsers.some((u) => u.toLowerCase() === senderLogin.toLowerCase())) {
+@@ -131,7 +151,7 @@ async function resolveCallerGating(
+     generateInstallationToken({
+       appId: env.GITHUB_APP_ID,
+       privateKey: env.GITHUB_APP_PRIVATE_KEY,
+-      installationId: env.GITHUB_APP_INSTALLATION_ID,
++      installationId: resolveWebhookInstallationId(env, owner, payloadInstallationId),
+       userAgent,
+     }),
+     getAuthHeaders(env, traceId),
+@@ -196,7 +216,8 @@ export async function handleReviewRequested(
+     repoName,
+     log,
+     traceId,
+-    repoFullName
++    repoFullName,
++    payload.installation?.id
+   );
+   if (!gating.allowed) return { outcome: "skipped", skip_reason: gating.reason };
+   const { ghToken, headers } = gating;
+@@ -296,7 +317,8 @@ export async function handlePullRequestOpened(
+     repoName,
+     log,
+     traceId,
+-    repoFullName
++    repoFullName,
++    payload.installation?.id
+   );
+   if (!gating.allowed) return { outcome: "skipped", skip_reason: gating.reason };
+   const { ghToken, headers } = gating;
+@@ -400,7 +422,8 @@ export async function handleIssueComment(
+     repoName,
+     log,
+     traceId,
+-    repoFullName
++    repoFullName,
++    payload.installation?.id
+   );
+   if (!gating.allowed) return { outcome: "skipped", skip_reason: gating.reason };
+   const { ghToken, headers } = gating;
+@@ -499,7 +522,8 @@ export async function handleReviewComment(
+     repoName,
+     log,
+     traceId,
+-    repoFullName
++    repoFullName,
++    payload.installation?.id
+   );
+   if (!gating.allowed) return { outcome: "skipped", skip_reason: gating.reason };
+   const { ghToken, headers } = gating;
+diff --git a/packages/github-bot/src/types.ts b/packages/github-bot/src/types.ts
+index b81eae0..b0d8d13 100644
+--- a/packages/github-bot/src/types.ts
++++ b/packages/github-bot/src/types.ts
+@@ -29,6 +29,9 @@ export interface Env {
+   /** GitHub App installation ID for token exchange. */
+   GITHUB_APP_INSTALLATION_ID: string;
+ 
++  /** JSON map of GitHub owner login to installation ID. */
++  GITHUB_APP_INSTALLATION_MAP?: string;
++
+   /** Webhook secret for verifying GitHub webhook signatures. */
+   GITHUB_WEBHOOK_SECRET: string;
+ 
+@@ -56,6 +59,7 @@ export interface PullRequestOpenedPayload {
+     draft: boolean;
+   };
+   repository: { owner: { login: string }; name: string; private: boolean };
++  installation?: { id: number };
+   sender: { login: string; id: number; avatar_url: string };
+ }
+ 
+@@ -71,6 +75,7 @@ export interface ReviewRequestedPayload {
+   };
+   requested_reviewer?: { login: string };
+   repository: { owner: { login: string }; name: string; private: boolean };
++  installation?: { id: number };
+   sender: { login: string; id: number; avatar_url: string };
+ }
+ 
+@@ -87,6 +92,7 @@ export interface IssueCommentPayload {
+     user: { login: string };
+   };
+   repository: { owner: { login: string }; name: string; private: boolean };
++  installation?: { id: number };
+   sender: { login: string; id: number; avatar_url: string };
+ }
+ 
+@@ -107,5 +113,6 @@ export interface ReviewCommentPayload {
+     user: { login: string };
+   };
+   repository: { owner: { login: string }; name: string; private: boolean };
++  installation?: { id: number };
+   sender: { login: string; id: number; avatar_url: string };
+ }

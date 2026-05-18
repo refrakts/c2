@@ -76,17 +76,16 @@ The current working tree prototypes:
 - c2 schema/config example support for `github.app.installations`.
 - c2 inputs rendering for `github_app_installation_map` as a map.
 - Terraform env wiring in background-agents production files.
-- Shared TypeScript resolver with tests.
+- Shared TypeScript resolver.
 - Control-plane owner-based config resolution for access checks, branch listing, clone token, and push auth.
 - `/repos` cache key bump to `repos:list:v2` and merged multi-install listing for GitHub.
+- GitHub bot webhook token routing using `payload.installation.id` with owner-map fallback.
+- Modal clone token routing for create, restore, image build, and scheduled image rebuild paths.
 
 ## Remaining Work
 
-- Generate final patch files from the prototype, split by concept.
-- Add GitHub bot webhook installation routing using `payload.installation.id` first, owner map fallback second.
-- Add Modal Python owner-based token routing for spawn, restore/resume, and image build paths.
-- Add focused control-plane tests for merged repo listing and owner-specific push token selection.
-- Run full build/test verification after patch generation.
+- Add focused control-plane tests for merged repo listing and owner-specific push token selection when test patch coverage is desired.
+- Run full deploy QA against real installations.
 
 ## Manual Test Matrix
 
