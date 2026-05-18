@@ -68,7 +68,7 @@
 
 - name: "[{{ project.name }}] Apply tweakcn theme"
   ansible.builtin.command:
-    cmd: "npx {{ background_agents_shadcn_cli }} add -y -o {{ project.tweakcnThemeUrl | default('', true) | quote }}"
+    cmd: "npx --yes -- {{ background_agents_shadcn_cli }} add --yes --overwrite {{ project.tweakcnThemeUrl | default('', true) | quote }}"
     chdir: "{{ work_dir }}/packages/web"
   changed_when: true
   when:

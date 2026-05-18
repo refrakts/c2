@@ -101,8 +101,8 @@ Files touched:
 
 ### `0010-web-theme-switching.patch`
 
-Makes the web Appearance color scheme control drive the app's shadcn/next-themes
-theme instead of only changing syntax highlighting. The existing Light/Dark/System
+Makes the Appearance color scheme control switch the app's shadcn/next-themes
+theme, instead of only changing syntax highlighting. The existing Light/Dark/System
 selection is moved into its own Theme section, persisted through the existing
 syntax-highlight preferences storage, and still controls the matching code
 highlighting stylesheet.
