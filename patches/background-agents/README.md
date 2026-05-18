@@ -80,6 +80,8 @@ leaner set:
 - *Replaced `opencode/` Zen entries with the full `opencode-go/` catalog:*
   GLM 5/5.1, Kimi K2.5/K2.6, DeepSeek V4 Pro/Flash, MiMo V2.5/V2.5 Pro,
   MiniMax M2.5/M2.7, Qwen 3.5/3.6 Plus (12 models)
+- *Added Google model IDs for the Gemini auth proxy patch:* Antigravity
+  Gemini 3 Pro/Flash and Gemini CLI 2.5 Pro/Flash
 - OpenCode Go models stay opt-in (not in `DEFAULT_ENABLED_MODELS`); users
   enable them via the web settings page
 
@@ -176,6 +178,36 @@ Files touched:
   controls from code highlighting theme choices
 - `packages/web/src/app/globals.css` — wraps the default `:root`, dark media
   query, and `.dark` variable blocks in `@layer base`
+
+### `0005-gemini-auth-proxy.patch`
+
+Adds a Google/Antigravity OAuth proxy path that mirrors the Codex security
+model: Google refresh tokens stay in control-plane repo/global secrets, while
+sandboxes receive only a sentinel auth entry and short-lived access tokens.
+
+The sandbox installs a local `gemini-auth-proxy-plugin.js` wrapper that imports
+`opencode-antigravity-auth` for request transformation, but intercepts refresh
+requests for `managed-by-control-plane` and forwards them to the control plane.
+
+Files touched:
+- `packages/control-plane/src/auth/google.ts` — Antigravity OAuth client refresh
+- `packages/control-plane/src/session/google-token-refresh-service.ts` — repo/global
+  secret lookup, access-token caching, and refresh-token rotation persistence
+- control-plane router/session handler files — adds
+  `POST /sessions/:id/google-token-refresh`
+- `packages/sandbox-runtime/src/sandbox_runtime/entrypoint.py` — writes Google
+  sentinel auth, injects Google model config, and deploys the wrapper plugin
+- `packages/sandbox-runtime/src/sandbox_runtime/plugins/gemini-auth-proxy-plugin.js`
+  — local wrapper around `opencode-antigravity-auth`
+- `packages/modal-infra/src/images/base.py` — pre-stages
+  `opencode-antigravity-auth@1.6.0` into `.opencode/node_modules`
+- `packages/shared/src/models.ts` — exposes Google/Antigravity model choices
+
+Expected secrets:
+- `GOOGLE_OAUTH_REFRESH_TOKEN` — either the raw refresh token or the plugin's
+  packed `refreshToken|projectId|managedProjectId` value
+- `GOOGLE_OAUTH_PROJECT_ID` — optional, overrides packed project ID
+- `GOOGLE_OAUTH_MANAGED_PROJECT_ID` — optional, overrides packed managed project ID
 
 ## Conventions
 
