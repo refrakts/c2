@@ -39,6 +39,12 @@ deployment {
       clientSecret = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       appId = "0"               // numeric, from GitHub App settings
       installationId = "0"      // numeric, from install URL
+      // Optional: map GitHub org/user login to installation ID for multi-org deployments.
+      // Keys are matched case-insensitively by the background-agents patches.
+      // installations = new Mapping {
+      //   ["org-a"] = "111111"
+      //   ["org-b"] = "222222"
+      // }
       privateKey =
         """
         -----BEGIN PRIVATE KEY-----

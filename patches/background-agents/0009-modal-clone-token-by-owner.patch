@@ -1,0 +1,134 @@
+diff --git a/packages/modal-infra/src/scheduler/image_builder.py b/packages/modal-infra/src/scheduler/image_builder.py
+index 4d26511..79e2171 100644
+--- a/packages/modal-infra/src/scheduler/image_builder.py
++++ b/packages/modal-infra/src/scheduler/image_builder.py
+@@ -135,14 +135,32 @@ async def _callback_with_retry(
+     return False
+ 
+ 
+-def _generate_clone_token() -> str:
++def _parse_installation_map() -> dict[str, str]:
++    raw = os.environ.get("GITHUB_APP_INSTALLATION_MAP", "{}")
++    try:
++        parsed = json.loads(raw)
++    except json.JSONDecodeError:
++        return {}
++    if not isinstance(parsed, dict):
++        return {}
++    return {str(owner).lower(): value for owner, value in parsed.items() if isinstance(value, str)}
++
++
++def _resolve_installation_id(repo_owner: str | None) -> str | None:
++    default = os.environ.get("GITHUB_APP_INSTALLATION_ID")
++    if not repo_owner:
++        return default
++    return _parse_installation_map().get(repo_owner.lower(), default)
++
++
++def _generate_clone_token(repo_owner: str | None = None) -> str:
+     """Generate a GitHub App install token for git operations. Returns empty string on failure."""
+     from ..auth import generate_installation_token
+ 
+     try:
+         app_id = os.environ.get("GITHUB_APP_ID")
+         private_key = os.environ.get("GITHUB_APP_PRIVATE_KEY")
+-        installation_id = os.environ.get("GITHUB_APP_INSTALLATION_ID")
++        installation_id = _resolve_installation_id(repo_owner)
+ 
+         if app_id and private_key and installation_id:
+             return generate_installation_token(
+@@ -228,7 +246,7 @@ async def build_repo_image(
+     sandbox_terminated = False
+ 
+     try:
+-        clone_token = _generate_clone_token()
++        clone_token = _generate_clone_token(repo_owner)
+ 
+         # Create build sandbox
+         log.info(
+@@ -510,10 +528,7 @@ async def rebuild_repo_images():
+         status_data = await _api_get(f"{control_plane_url}/repo-images/status")
+         all_images: list[dict] = status_data.get("images", [])
+ 
+-        # 3. Generate GitHub App token for ls-remote
+-        clone_token = _generate_clone_token()
+-
+-        # 4. Check each enabled repo
++        # 3. Check each enabled repo
+         for repo in enabled_repos:
+             repo_owner = repo.get("repoOwner", "")
+             repo_name = repo.get("repoName", "")
+@@ -521,6 +536,7 @@ async def rebuild_repo_images():
+             if not repo_owner or not repo_name:
+                 continue
+ 
++            clone_token = _generate_clone_token(repo_owner)
+             remote_sha = _git_ls_remote_sha(repo_owner, repo_name, "main", clone_token)
+             if not remote_sha:
+                 continue
+diff --git a/packages/modal-infra/src/web_api.py b/packages/modal-infra/src/web_api.py
+index 479667a..49da852 100644
+--- a/packages/modal-infra/src/web_api.py
++++ b/packages/modal-infra/src/web_api.py
+@@ -13,6 +13,7 @@ The control plane must include an Authorization header with a valid token.
+ 
+ import os
+ import time
++import json
+ 
+ from fastapi import Header, HTTPException
+ from modal import fastapi_endpoint
+@@ -55,7 +56,25 @@ def require_auth(authorization: str | None) -> None:
+         )
+ 
+ 
+-def _resolve_clone_token() -> str | None:
++def _parse_installation_map() -> dict[str, str]:
++    raw = os.environ.get("GITHUB_APP_INSTALLATION_MAP", "{}")
++    try:
++        parsed = json.loads(raw)
++    except json.JSONDecodeError:
++        return {}
++    if not isinstance(parsed, dict):
++        return {}
++    return {str(owner).lower(): value for owner, value in parsed.items() if isinstance(value, str)}
++
++
++def _resolve_installation_id(repo_owner: str | None) -> str | None:
++    default = os.environ.get("GITHUB_APP_INSTALLATION_ID")
++    if not repo_owner:
++        return default
++    return _parse_installation_map().get(repo_owner.lower(), default)
++
++
++def _resolve_clone_token(repo_owner: str | None = None) -> str | None:
+     """Resolve a VCS clone token based on SCM_PROVIDER.
+ 
+     - "gitlab": reads GITLAB_ACCESS_TOKEN from the environment.
+@@ -76,7 +95,7 @@ def _resolve_clone_token() -> str | None:
+     try:
+         app_id = os.environ.get("GITHUB_APP_ID")
+         private_key = os.environ.get("GITHUB_APP_PRIVATE_KEY")
+-        installation_id = os.environ.get("GITHUB_APP_INSTALLATION_ID")
++        installation_id = _resolve_installation_id(repo_owner)
+ 
+         if app_id and private_key and installation_id:
+             return generate_installation_token(
+@@ -154,7 +173,7 @@ async def api_create_sandbox(
+ 
+         manager = SandboxManager()
+ 
+-        clone_token = _resolve_clone_token()
++        clone_token = _resolve_clone_token(request.get("repo_owner"))
+ 
+         session_config = SessionConfig(
+             session_id=request.get("session_id"),
+@@ -465,7 +484,7 @@ async def api_restore_sandbox(
+         timeout_seconds = int(request.get("timeout_seconds", DEFAULT_SANDBOX_TIMEOUT_SECONDS))
+ 
+         manager = SandboxManager()
+-        clone_token = _resolve_clone_token()
++        clone_token = _resolve_clone_token(session_config.get("repo_owner"))
+ 
+         code_server_enabled = bool(request.get("code_server_enabled", False))
+         agent_slack_notify_enabled = bool(request.get("agent_slack_notify_enabled", False))

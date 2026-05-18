@@ -1,0 +1,72 @@
+diff --git a/terraform/environments/production/modal.tf b/terraform/environments/production/modal.tf
+index 03e9f0a..e526406 100644
+--- a/terraform/environments/production/modal.tf
++++ b/terraform/environments/production/modal.tf
+@@ -46,6 +46,7 @@ module "modal_app" {
+         GITHUB_APP_ID              = var.github_app_id
+         GITHUB_APP_PRIVATE_KEY     = var.github_app_private_key
+         GITHUB_APP_INSTALLATION_ID = var.github_app_installation_id
++        GITHUB_APP_INSTALLATION_MAP = jsonencode(var.github_app_installation_map)
+       }
+     },
+     {
+diff --git a/terraform/environments/production/terraform.tfvars.example b/terraform/environments/production/terraform.tfvars.example
+index 563c822..b16b7b9 100644
+--- a/terraform/environments/production/terraform.tfvars.example
++++ b/terraform/environments/production/terraform.tfvars.example
+@@ -97,6 +97,14 @@ EOF
+ 
+ github_app_installation_id = ""
+ 
++# Optional multi-installation map. Keys are GitHub org/user logins, values are
++# installation IDs for the same GitHub App. The default installation ID above is
++# still used as a fallback.
++github_app_installation_map = {
++  # "org-a" = "111111"
++  # "org-b" = "222222"
++}
++
+ # GitHub Bot (Optional)
+ # Set enable_github_bot = true to deploy the GitHub bot worker for PR reviews
+ # and @mention commands. Requires github_webhook_secret and github_bot_username.
+diff --git a/terraform/environments/production/variables.tf b/terraform/environments/production/variables.tf
+index 95a55aa..3d0749d 100644
+--- a/terraform/environments/production/variables.tf
++++ b/terraform/environments/production/variables.tf
+@@ -107,6 +107,12 @@ variable "github_app_installation_id" {
+   type        = string
+ }
+ 
++variable "github_app_installation_map" {
++  description = "Map of GitHub owner login to GitHub App installation ID"
++  type        = map(string)
++  default     = {}
++}
++
+ # =============================================================================
+ # GitHub Bot Configuration
+ # =============================================================================
+diff --git a/terraform/environments/production/workers-control-plane.tf b/terraform/environments/production/workers-control-plane.tf
+index 4ecd81c..032df31 100644
+--- a/terraform/environments/production/workers-control-plane.tf
++++ b/terraform/environments/production/workers-control-plane.tf
+@@ -90,6 +90,7 @@ module "control_plane_worker" {
+       { name = "GITHUB_APP_ID", value = var.github_app_id },
+       { name = "GITHUB_APP_PRIVATE_KEY", value = var.github_app_private_key },
+       { name = "GITHUB_APP_INSTALLATION_ID", value = var.github_app_installation_id },
++      { name = "GITHUB_APP_INSTALLATION_MAP", value = jsonencode(var.github_app_installation_map) },
+     ],
+     local.use_modal_backend ? [
+       { name = "MODAL_TOKEN_ID", value = var.modal_token_id },
+diff --git a/terraform/environments/production/workers-github.tf b/terraform/environments/production/workers-github.tf
+index 18a43ea..735f537 100644
+--- a/terraform/environments/production/workers-github.tf
++++ b/terraform/environments/production/workers-github.tf
+@@ -51,6 +51,7 @@ module "github_bot_worker" {
+     { name = "GITHUB_APP_ID", value = var.github_app_id },
+     { name = "GITHUB_APP_PRIVATE_KEY", value = var.github_app_private_key },
+     { name = "GITHUB_APP_INSTALLATION_ID", value = var.github_app_installation_id },
++    { name = "GITHUB_APP_INSTALLATION_MAP", value = jsonencode(var.github_app_installation_map) },
+     { name = "GITHUB_WEBHOOK_SECRET", value = var.github_webhook_secret },
+     { name = "INTERNAL_CALLBACK_SECRET", value = var.internal_callback_secret },
+   ]
