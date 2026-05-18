@@ -2,3 +2,7 @@
 	path = services/background-agents
 	url = https://github.com/ColeMurray/background-agents.git
 	shallow = true
+[submodule "services/constructor-mobile"]
+	path = services/constructor-mobile
+	url = https://github.com/refrakts/constructor-mobile.git
+	shallow = true
