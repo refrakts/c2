@@ -8,6 +8,7 @@ import "Linear.pkl"
 import "Modal.pkl"
 import "Slack.pkl"
 import "Vercel.pkl"
+import "InferenceKeys.pkl"
 
 class AccessControl {
   allowedUsers: List<String>(every((u) -> u.matches(Regex(#"^[a-zA-Z0-9-]+$"#)))) = List()
@@ -51,7 +52,7 @@ class Deployment {
   slack: Slack.Config?
   linear: Linear.Config?
 
-  anthropicApiKey: String(startsWith("sk-ant-"))
+  inferenceKeys: InferenceKeys.InferenceKeys
   //   companion: Companion.Config
 }
 

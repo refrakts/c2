@@ -1,0 +1,197 @@
+diff --git a/packages/shared/src/models.ts b/packages/shared/src/models.ts
+index e86bd74..e0918b6 100644
+--- a/packages/shared/src/models.ts
++++ b/packages/shared/src/models.ts
+@@ -10,21 +10,29 @@
+  * All models use "provider/model" format.
+  */
+ export const VALID_MODELS = [
+-  "anthropic/claude-haiku-4-5",
+-  "anthropic/claude-sonnet-4-5",
++  // Anthropic
+   "anthropic/claude-sonnet-4-6",
+-  "anthropic/claude-opus-4-5",
+   "anthropic/claude-opus-4-6",
+   "anthropic/claude-opus-4-7",
+-  "openai/gpt-5.2",
+-  "openai/gpt-5.4",
++
++  // OpenAI
+   "openai/gpt-5.5",
+-  "openai/gpt-5.2-codex",
+   "openai/gpt-5.3-codex",
+   "openai/gpt-5.3-codex-spark",
+-  "opencode/kimi-k2.5",
+-  "opencode/minimax-m2.5",
+-  "opencode/glm-5",
++
++  // OpenCode Go
++  "opencode-go/glm-5",
++  "opencode-go/glm-5.1",
++  "opencode-go/kimi-k2.5",
++  "opencode-go/kimi-k2.6",
++  "opencode-go/deepseek-v4-pro",
++  "opencode-go/deepseek-v4-flash",
++  "opencode-go/mimo-v2.5",
++  "opencode-go/mimo-v2.5-pro",
++  "opencode-go/minimax-m2.5",
++  "opencode-go/minimax-m2.7",
++  "opencode-go/qwen3.5-plus",
++  "opencode-go/qwen3.6-plus",
+ ] as const;
+ 
+ export type ValidModel = (typeof VALID_MODELS)[number];
+@@ -53,16 +61,10 @@ export interface ModelReasoningConfig {
+  * Models not listed here do not support reasoning controls.
+  */
+ export const MODEL_REASONING_CONFIG: Partial<Record<ValidModel, ModelReasoningConfig>> = {
+-  "anthropic/claude-haiku-4-5": { efforts: ["high", "max"], default: "max" },
+-  "anthropic/claude-sonnet-4-5": { efforts: ["high", "max"], default: "max" },
+   "anthropic/claude-sonnet-4-6": { efforts: ["low", "medium", "high", "max"], default: "high" },
+-  "anthropic/claude-opus-4-5": { efforts: ["high", "max"], default: "max" },
+   "anthropic/claude-opus-4-6": { efforts: ["low", "medium", "high", "max"], default: "high" },
+   "anthropic/claude-opus-4-7": { efforts: ["low", "medium", "high", "max"], default: "high" },
+-  "openai/gpt-5.2": { efforts: ["none", "low", "medium", "high", "xhigh"], default: undefined },
+-  "openai/gpt-5.4": { efforts: ["none", "low", "medium", "high", "xhigh"], default: undefined },
+   "openai/gpt-5.5": { efforts: ["none", "low", "medium", "high", "xhigh"], default: undefined },
+-  "openai/gpt-5.2-codex": { efforts: ["low", "medium", "high", "xhigh"], default: "high" },
+   "openai/gpt-5.3-codex": { efforts: ["low", "medium", "high", "xhigh"], default: "high" },
+   "openai/gpt-5.3-codex-spark": { efforts: ["low", "medium", "high", "xhigh"], default: "high" },
+ };
+@@ -85,25 +87,10 @@ export const MODEL_OPTIONS: ModelCategory[] = [
+   {
+     category: "Anthropic",
+     models: [
+-      {
+-        id: "anthropic/claude-haiku-4-5",
+-        name: "Claude Haiku 4.5",
+-        description: "Fast and efficient",
+-      },
+-      {
+-        id: "anthropic/claude-sonnet-4-5",
+-        name: "Claude Sonnet 4.5",
+-        description: "Balanced performance",
+-      },
+       {
+         id: "anthropic/claude-sonnet-4-6",
+         name: "Claude Sonnet 4.6",
+-        description: "Latest balanced, fast coding",
+-      },
+-      {
+-        id: "anthropic/claude-opus-4-5",
+-        name: "Claude Opus 4.5",
+-        description: "Most capable",
++        description: "Balanced, fast coding",
+       },
+       {
+         id: "anthropic/claude-opus-4-6",
+@@ -113,18 +100,15 @@ export const MODEL_OPTIONS: ModelCategory[] = [
+       {
+         id: "anthropic/claude-opus-4-7",
+         name: "Claude Opus 4.7",
+-        description: "Latest, most capable",
++        description: "Latest flagship",
+       },
+     ],
+   },
+   {
+     category: "OpenAI",
+     models: [
+-      { id: "openai/gpt-5.2", name: "GPT 5.2", description: "400K context, fast" },
+-      { id: "openai/gpt-5.4", name: "GPT 5.4", description: "Flagship model" },
+-      { id: "openai/gpt-5.5", name: "GPT 5.5", description: "Latest flagship model" },
+-      { id: "openai/gpt-5.2-codex", name: "GPT 5.2 Codex", description: "Optimized for code" },
+-      { id: "openai/gpt-5.3-codex", name: "GPT 5.3 Codex", description: "Latest codex" },
++      { id: "openai/gpt-5.5", name: "GPT 5.5", description: "Latest flagship" },
++      { id: "openai/gpt-5.3-codex", name: "GPT 5.3 Codex", description: "Optimized for code" },
+       {
+         id: "openai/gpt-5.3-codex-spark",
+         name: "GPT 5.3 Codex Spark",
+@@ -133,11 +117,28 @@ export const MODEL_OPTIONS: ModelCategory[] = [
+     ],
+   },
+   {
+-    category: "OpenCode Zen",
++    category: "OpenCode Go",
+     models: [
+-      { id: "opencode/kimi-k2.5", name: "Kimi K2.5", description: "Moonshot AI" },
+-      { id: "opencode/minimax-m2.5", name: "MiniMax M2.5", description: "MiniMax" },
+-      { id: "opencode/glm-5", name: "GLM 5", description: "Z.ai 744B MoE" },
++      { id: "opencode-go/glm-5.1", name: "GLM 5.1", description: "Z.ai, hybrid reasoning" },
++      { id: "opencode-go/glm-5", name: "GLM 5", description: "Z.ai 744B MoE" },
++      { id: "opencode-go/kimi-k2.6", name: "Kimi K2.6", description: "Moonshot AI, agentic" },
++      { id: "opencode-go/kimi-k2.5", name: "Kimi K2.5", description: "Moonshot AI" },
++      {
++        id: "opencode-go/deepseek-v4-pro",
++        name: "DeepSeek V4 Pro",
++        description: "1.6T MoE, 1M context",
++      },
++      {
++        id: "opencode-go/deepseek-v4-flash",
++        name: "DeepSeek V4 Flash",
++        description: "Fast variant",
++      },
++      { id: "opencode-go/mimo-v2.5-pro", name: "MiMo V2.5 Pro", description: "Xiaomi flagship" },
++      { id: "opencode-go/mimo-v2.5", name: "MiMo V2.5", description: "Xiaomi" },
++      { id: "opencode-go/minimax-m2.7", name: "MiniMax M2.7", description: "Latest agentic" },
++      { id: "opencode-go/minimax-m2.5", name: "MiniMax M2.5", description: "Agentic, fast" },
++      { id: "opencode-go/qwen3.6-plus", name: "Qwen 3.6 Plus", description: "Alibaba flagship" },
++      { id: "opencode-go/qwen3.5-plus", name: "Qwen 3.5 Plus", description: "Alibaba" },
+     ],
+   },
+ ];
+@@ -147,16 +148,10 @@ export const MODEL_OPTIONS: ModelCategory[] = [
+  * Excludes zen models which must be opted into via settings.
+  */
+ export const DEFAULT_ENABLED_MODELS: ValidModel[] = [
+-  "anthropic/claude-haiku-4-5",
+-  "anthropic/claude-sonnet-4-5",
+   "anthropic/claude-sonnet-4-6",
+-  "anthropic/claude-opus-4-5",
+   "anthropic/claude-opus-4-6",
+   "anthropic/claude-opus-4-7",
+-  "openai/gpt-5.2",
+-  "openai/gpt-5.4",
+   "openai/gpt-5.5",
+-  "openai/gpt-5.2-codex",
+   "openai/gpt-5.3-codex",
+   "openai/gpt-5.3-codex-spark",
+ ];
+diff --git a/terraform/environments/production/modal.tf b/terraform/environments/production/modal.tf
+index 03e9f0a..ba8ee4c 100644
+--- a/terraform/environments/production/modal.tf
++++ b/terraform/environments/production/modal.tf
+@@ -36,9 +36,12 @@ module "modal_app" {
+   secrets = [
+     {
+       name = "llm-api-keys"
+-      values = {
+-        ANTHROPIC_API_KEY = var.anthropic_api_key
+-      }
++      values = merge(
++        {
++          ANTHROPIC_API_KEY = var.anthropic_api_key
++        },
++        var.opencode_api_key != "" ? { OPENCODE_API_KEY = var.opencode_api_key } : {}
++      )
+     },
+     {
+       name = "github-app"
+diff --git a/terraform/environments/production/variables.tf b/terraform/environments/production/variables.tf
+index 95a55aa..d60ea93 100644
+--- a/terraform/environments/production/variables.tf
++++ b/terraform/environments/production/variables.tf
+@@ -220,6 +220,13 @@ variable "anthropic_api_key" {
+   sensitive   = true
+ }
+ 
++variable "opencode_api_key" {
++  description = "OpenCode Go API key for sandbox use. Leave empty to disable OpenCode models."
++  type        = string
++  default     = ""
++  sensitive   = true
++}
++
+ # =============================================================================
+ # Security Secrets
+ # =============================================================================

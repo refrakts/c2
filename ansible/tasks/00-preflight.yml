@@ -38,7 +38,10 @@
     msg: "Loaded {{ projects | length }} project(s): {{ projects | map(attribute='name') | join(', ') }}"
 
 - name: Enforce pin for each project
-  ansible.builtin.include_tasks: tasks/00a-preflight-pin.yml
+  ansible.builtin.include_tasks:
+    file: tasks/00a-preflight-pin.yml
+    apply:
+      tags: [preflight]
   loop: "{{ projects }}"
   loop_control:
     loop_var: project

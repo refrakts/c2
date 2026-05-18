@@ -9,6 +9,7 @@ import "config/schema/deployment/Linear.pkl"
 import "config/schema/deployment/Modal.pkl"
 import "config/schema/deployment/Slack.pkl"
 import "config/schema/deployment/Vercel.pkl"
+import "config/schema/deployment/InferenceKeys.pkl"
 
 deployment {
   // ─── Basics ──────────────────────────────────────────────────────────
@@ -108,7 +109,9 @@ deployment {
   }
 
   // ─── API keys ────────────────────────────────────────────────────────
-  anthropicApiKey = "sk-ant-REPLACE_ME"
+  inferenceKeys = new InferenceKeys.InferenceKeys {
+    anthropic = "sk-ant-REPLACE_ME"
+  }
 
   // ─── Optional: override R2 media bucket name ─────────────────────────
   // r2MediaBucketName = "my-pre-created-bucket"

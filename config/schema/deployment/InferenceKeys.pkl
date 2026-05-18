@@ -1,0 +1,9 @@
+module InferenceKeys
+
+class InferenceKeys {
+  /// Anthropic API key for Claude
+  anthropic: String(startsWith("sk-ant-"))
+
+  /// OpenCode API key for Zen/Go
+  opencode: String(startsWith("sk-"))?
+}

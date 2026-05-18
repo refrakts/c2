@@ -20,7 +20,8 @@ local baseFields = new Mapping {
   ["github_app_private_key"] = d.github.app.privateKey
 
   // API keys
-  ["anthropic_api_key"] = d.anthropicApiKey
+  ["anthropic_api_key"] = d.inferenceKeys.anthropic
+  ["opencode_api_key"] = d.inferenceKeys.opencode
 
   // Security
   ["token_encryption_key"] = d.security.tokenEncryptionKey

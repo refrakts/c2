@@ -58,6 +58,45 @@ Files touched:
 The variable is wired through from `config.pkl` → `deployment.customWebAppDomain`
 → `inputs.json` → `terraform.tfvars`. Leave it empty to use the platform default.
 
+### `0003-opencode-and-model-list-cleanup.patch`
+
+Two related changes wrapped in one patch:
+
+**OpenCode Go API key wiring.** Adds an optional `opencode_api_key` Terraform
+variable and threads it into the `llm-api-keys` Modal secret via `merge()`.
+When unset, the key isn't added to the secret at all — Modal doesn't see an
+empty `OPENCODE_API_KEY` value that would break OpenCode SDK auth in sandboxes.
+The key comes from `config.pkl` → `deployment.openCodeApiKey` (default `""`).
+
+**Default model list cleanup.** Trims `packages/shared/src/models.ts` to a
+leaner set:
+
+- *Removed older Anthropic models:* `claude-haiku-4-5`, `claude-sonnet-4-5`,
+  `claude-opus-4-5` (all superseded by 4.6/4.7)
+- *Removed older OpenAI models:* `gpt-5.2`, `gpt-5.4`, `gpt-5.2-codex`
+  (superseded by `gpt-5.5` and `gpt-5.3-codex` variants)
+- *Replaced `opencode/` Zen entries with the full `opencode-go/` catalog:*
+  GLM 5/5.1, Kimi K2.5/K2.6, DeepSeek V4 Pro/Flash, MiMo V2.5/V2.5 Pro,
+  MiniMax M2.5/M2.7, Qwen 3.5/3.6 Plus (12 models)
+- OpenCode Go models stay opt-in (not in `DEFAULT_ENABLED_MODELS`); users
+  enable them via the web settings page
+
+Files touched:
+- `variables.tf` — new `opencode_api_key` variable, default `""`
+- `terraform/environments/production/modal.tf` — `llm-api-keys` secret values
+  use `merge()` to conditionally include `OPENCODE_API_KEY`
+- `packages/shared/src/models.ts` — `VALID_MODELS`, `MODEL_OPTIONS`,
+  `MODEL_REASONING_CONFIG`, and `DEFAULT_ENABLED_MODELS` all reflect the
+  trimmed roster
+
+> **Maintenance note:** This patch touches `packages/shared/src/models.ts`,
+> which is upstream's TypeScript source rather than infrastructure code.
+> Upstream is likely to evolve this file as new models land. When bumping
+> the submodule SHA, expect this patch to need regeneration more often than
+> the others. If the model cleanup is broadly useful, consider opening a PR
+> against ColeMurray/background-agents to upstream it, then dropping this
+> portion of the patch.
+
 ## Conventions
 
 - File names follow `NNNN-short-slug.patch` (git format-patch style)

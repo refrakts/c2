@@ -22,8 +22,11 @@
       tags: [render, config]
 
     - name: Sync each project
-      ansible.builtin.include_tasks: tasks/02-sync-upstream.yml
-      loop: "{{ projects }}" # fact from preflight
+      ansible.builtin.include_tasks:
+        file: tasks/02-sync-upstream.yml
+        apply:
+          tags: [sync, upstream]
+      loop: "{{ projects }}"
       loop_control:
         loop_var: project
         label: "{{ project.name }}"
