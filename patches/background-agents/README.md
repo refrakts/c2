@@ -31,15 +31,14 @@ To toggle patches on for a project, set `patches = true` on its entry in
 
 ## Patches
 
-### `0001-make-bucket-configurable.patch`
+### `0001-make-backend-configurable.patch`
 
-Removes the hardcoded `bucket = "open-inspect-terraform-state"` from `backend.tf`
-so the bucket name can be supplied via `-backend-config` at `terraform init` time.
+Removes the hardcoded `bucket`, `key`, and `region` values from `backend.tf`
+so all three can be supplied via `-backend-config` at `terraform init` time.
 
-Without this patch, every deployment of c2 would share upstream's bucket name —
-fine for a single tenant, broken for multiple friends each using their own R2
-account. The bucket value comes from `config.pkl` → `state.bucket` and is
-written into `backend.tfvars` by `04-terraform-init.yml`.
+This is what lets c2 share a single R2 state bucket across multiple projects
+(b-a and constructor-mobile) using distinct keys per project, with all values
+sourced from `config.pkl` → `state` and rendered by `04-terraform-init.yml`.
 
 ### `0002-custom-web-domain.patch`
 

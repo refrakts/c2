@@ -124,5 +124,6 @@ state {
   accountId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   accessKey = "REPLACE_ME"                                                        // R2 API token access key
   secretKey = "REPLACE_ME"                                                        // R2 API token secret key
-  passphrase = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // openssl rand -hex 32
+  coreKey = "production/terraform.tfstate"
+  mobileKey = "mobile/terraform.tfstate"
 }

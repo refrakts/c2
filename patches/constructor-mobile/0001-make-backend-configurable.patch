@@ -1,0 +1,23 @@
+diff --git a/terraform/environments/production/backend.tf b/terraform/environments/production/backend.tf
+index 1a5eb21..464f5c1 100644
+--- a/terraform/environments/production/backend.tf
++++ b/terraform/environments/production/backend.tf
+@@ -11,13 +11,14 @@
+ 
+ terraform {
+   backend "s3" {
+-    bucket = "constructor-gateway-tfstate"
+-    key    = "production/terraform.tfstate"
+     region = "auto"
+ 
+-    # access_key / secret_key / endpoints supplied via -backend-config=backend.tfvars
++    # All sensitive/account-specific values passed via -backend-config
++    # endpoints = { s3 = "https://<ACCOUNT_ID>.r2.cloudflarestorage.com" }
++    # access_key = "..."
++    # secret_key = "..."
+ 
+-    # R2 compatibility
++    # Required for R2 compatibility
+     skip_credentials_validation = true
+     skip_metadata_api_check     = true
+     skip_region_validation      = true

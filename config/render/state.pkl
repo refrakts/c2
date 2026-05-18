@@ -1,5 +1,6 @@
 /// Renders the `state` block from config.pkl to deploy/state.json.
-/// Consumed by deploy/_shared/backend.hcl for the Terragrunt R2 backend.
+/// Consumed by Ansible (04-terraform-init.yml) to render per-project
+/// backend.tfvars files for terraform init.
 
 @ModuleInfo { minPklVersion = "0.31.0" }
 module State
@@ -12,4 +13,5 @@ bucket     = s.bucket
 account_id = s.accountId
 access_key = s.accessKey
 secret_key = s.secretKey
-passphrase = s.passphrase
+core_key   = s.coreKey
+mobile_key = s.mobileKey

@@ -8,9 +8,9 @@ diff --git a/terraform/environments/production/backend.tf b/terraform/environmen
 -    bucket = "open-inspect-terraform-state"
 -    key    = "production/terraform.tfstate"
 -    region = "auto"
-+    # bucket supplied via -backend-config (set per-deployment in c2)
-+    key    = "production/terraform.tfstate"
-+    region = "auto"
++    # bucket = "open-inspect-terraform-state"
++    # key    = "production/terraform.tfstate"
++    # region = "auto"
  
      # All sensitive/account-specific values passed via -backend-config
      # endpoints = { s3 = "https://<ACCOUNT_ID>.r2.cloudflarestorage.com" }

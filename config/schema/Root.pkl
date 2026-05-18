@@ -10,6 +10,11 @@ projects: Mapping<String, Project.Project> = new {
     pin = "a8a14c46a9f0e92b99748787e7f755bca8ff96c7"
     patches = true
   }
+  ["constructor-mobile"] {
+    source = "services/constructor-mobile"
+    pin = "484e9d82e10beefa6cd4a2b19199882b1bb2b7f0"
+    patches = true
+  }
 }
 
 deployment: Deployment.Deployment

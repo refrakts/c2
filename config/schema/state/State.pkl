@@ -9,5 +9,6 @@ class State {
   accessKey: String(length > 0)
   secretKey: String(length > 0)
 
-  passphrase: String(length >= 32)
+  coreKey: String(length > 0) = "production/terraform.tfstate"
+  mobileKey: String(length > 0) = "mobile/terraform.tfstate"
 }

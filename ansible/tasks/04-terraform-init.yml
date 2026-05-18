@@ -29,6 +29,8 @@
     mode: "0600"
     content: |
       bucket     = "{{ tf_state.bucket }}"
+      key        = "{{ tf_state.core_key }}"
+      region     = "{{ tf_state.region }}"
       access_key = "{{ tf_state.access_key }}"
       secret_key = "{{ tf_state.secret_key }}"
       endpoints = {
@@ -48,7 +50,7 @@
   environment:
     AWS_ACCESS_KEY_ID: "{{ tf_state.access_key }}"
     AWS_SECRET_ACCESS_KEY: "{{ tf_state.secret_key }}"
-    AWS_REGION: auto
+    AWS_REGION: "{{ tf_state.region }}"
   register: tf_init_result
   changed_when: "'Terraform has been successfully initialized' in tf_init_result.stdout"
 
