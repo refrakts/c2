@@ -1,0 +1,482 @@
+diff --git a/packages/control-plane/src/auth/github-app.test.ts b/packages/control-plane/src/auth/github-app.test.ts
+index e6a6498..5c31cdb 100644
+--- a/packages/control-plane/src/auth/github-app.test.ts
++++ b/packages/control-plane/src/auth/github-app.test.ts
+@@ -2,9 +2,11 @@ import { afterEach, describe, it, expect, vi } from "vitest";
+ import {
+   isGitHubAppConfigured,
+   getGitHubAppConfig,
++  getUniqueInstallationIds,
+   getCachedInstallationToken,
+   INSTALLATION_TOKEN_CACHE_MAX_AGE_MS,
+   INSTALLATION_TOKEN_MIN_REMAINING_MS,
++  resolveInstallationIdForOwner,
+ } from "./github-app";
+ import type { CacheStore } from "@open-inspect/shared";
+ 
+@@ -118,6 +120,40 @@ describe("github-app utilities", () => {
+         })
+       ).toBeNull();
+     });
++
++    it("uses an explicit installation ID when provided", () => {
++      const config = getGitHubAppConfig(
++        {
++          GITHUB_APP_ID: "12345",
++          GITHUB_APP_PRIVATE_KEY: "key",
++          GITHUB_APP_INSTALLATION_ID: "67890",
++        },
++        "22222"
++      );
++
++      expect(config?.installationId).toBe("22222");
++    });
++  });
++
++  describe("installation map helpers", () => {
++    it("resolves owners through the map with default fallback", () => {
++      const env = {
++        GITHUB_APP_INSTALLATION_ID: "111",
++        GITHUB_APP_INSTALLATION_MAP: '{"Acme":"222"}',
++      };
++
++      expect(resolveInstallationIdForOwner(env, "acme")).toBe("222");
++      expect(resolveInstallationIdForOwner(env, "other")).toBe("111");
++    });
++
++    it("returns unique installation IDs including the default", () => {
++      expect(
++        getUniqueInstallationIds({
++          GITHUB_APP_INSTALLATION_ID: "111",
++          GITHUB_APP_INSTALLATION_MAP: '{"acme":"222","dupe":"111"}',
++        })
++      ).toEqual(["111", "222"]);
++    });
+   });
+ 
+   describe("getCachedInstallationToken", () => {
+diff --git a/packages/control-plane/src/auth/github-app.ts b/packages/control-plane/src/auth/github-app.ts
+index 051f67c..dbe7888 100644
+--- a/packages/control-plane/src/auth/github-app.ts
++++ b/packages/control-plane/src/auth/github-app.ts
+@@ -11,6 +11,8 @@
+ 
+ import {
+   DEFAULT_APP_NAME,
++  parseInstallationMap,
++  resolveInstallationId,
+   type CacheStore,
+   type InstallationRepository,
+ } from "@open-inspect/shared";
+@@ -95,6 +97,13 @@ export interface GitHubAppConfig {
+   installationId: string;
+ }
+ 
++export interface GitHubAppEnv {
++  GITHUB_APP_ID?: string;
++  GITHUB_APP_PRIVATE_KEY?: string;
++  GITHUB_APP_INSTALLATION_ID?: string;
++  GITHUB_APP_INSTALLATION_MAP?: string;
++}
++
+ /**
+  * GitHub installation token response.
+  */
+@@ -517,6 +526,34 @@ export async function listInstallationRepositories(
+   };
+ }
+ 
++export async function listRepositoriesAcrossInstallations(
++  env: GitHubAppEnv,
++  cacheBindings?: InstallationTokenCacheBindings
++): Promise<{ repos: InstallationRepository[]; timing: ListReposTiming[] }> {
++  const configs = getUniqueInstallationIds(env)
++    .map((installationId) => getGitHubAppConfig(env, installationId))
++    .filter((config): config is GitHubAppConfig => config !== null);
++
++  const results = await Promise.all(
++    configs.map((config) => listInstallationRepositories(config, cacheBindings))
++  );
++  const reposByName = new Map<string, InstallationRepository>();
++
++  for (const result of results) {
++    for (const repo of result.repos) {
++      const key = repo.fullName.toLowerCase();
++      if (!reposByName.has(key)) {
++        reposByName.set(key, repo);
++      }
++    }
++  }
++
++  return {
++    repos: [...reposByName.values()],
++    timing: results.map((result) => result.timing),
++  };
++}
++
+ /**
+  * Fetch a single repository using the GitHub App installation token.
+  * Returns null if the repository is not accessible to the installation.
+@@ -625,22 +662,36 @@ export async function listRepositoryBranches(
+ /**
+  * Check if GitHub App credentials are configured.
+  */
+-export function isGitHubAppConfigured(env: {
+-  GITHUB_APP_ID?: string;
+-  GITHUB_APP_PRIVATE_KEY?: string;
+-  GITHUB_APP_INSTALLATION_ID?: string;
+-}): boolean {
++export function isGitHubAppConfigured(env: GitHubAppEnv): boolean {
+   return !!(env.GITHUB_APP_ID && env.GITHUB_APP_PRIVATE_KEY && env.GITHUB_APP_INSTALLATION_ID);
+ }
+ 
++export function resolveInstallationIdForOwner(env: GitHubAppEnv, owner: string): string {
++  return resolveInstallationId(
++    owner,
++    parseInstallationMap(env.GITHUB_APP_INSTALLATION_MAP),
++    env.GITHUB_APP_INSTALLATION_ID!
++  );
++}
++
++export function getUniqueInstallationIds(env: GitHubAppEnv): string[] {
++  const ids = new Set<string>();
++  if (env.GITHUB_APP_INSTALLATION_ID) {
++    ids.add(env.GITHUB_APP_INSTALLATION_ID);
++  }
++  for (const id of parseInstallationMap(env.GITHUB_APP_INSTALLATION_MAP).values()) {
++    ids.add(id);
++  }
++  return [...ids];
++}
++
+ /**
+  * Get GitHub App config from environment.
+  */
+-export function getGitHubAppConfig(env: {
+-  GITHUB_APP_ID?: string;
+-  GITHUB_APP_PRIVATE_KEY?: string;
+-  GITHUB_APP_INSTALLATION_ID?: string;
+-}): GitHubAppConfig | null {
++export function getGitHubAppConfig(
++  env: GitHubAppEnv,
++  installationId?: string
++): GitHubAppConfig | null {
+   if (!isGitHubAppConfigured(env)) {
+     return null;
+   }
+@@ -648,6 +699,6 @@ export function getGitHubAppConfig(env: {
+   return {
+     appId: env.GITHUB_APP_ID!,
+     privateKey: env.GITHUB_APP_PRIVATE_KEY!,
+-    installationId: env.GITHUB_APP_INSTALLATION_ID!,
++    installationId: installationId ?? env.GITHUB_APP_INSTALLATION_ID!,
+   };
+ }
+diff --git a/packages/control-plane/src/auth/index.ts b/packages/control-plane/src/auth/index.ts
+index 3d18306..2cd1012 100644
+--- a/packages/control-plane/src/auth/index.ts
++++ b/packages/control-plane/src/auth/index.ts
+@@ -4,6 +4,13 @@
+ 
+ export { encryptToken, decryptToken, generateEncryptionKey, generateId } from "./crypto";
+ 
+-export { isGitHubAppConfigured, getGitHubAppConfig, type GitHubAppConfig } from "./github-app";
++export {
++  isGitHubAppConfigured,
++  getGitHubAppConfig,
++  getUniqueInstallationIds,
++  listRepositoriesAcrossInstallations,
++  resolveInstallationIdForOwner,
++  type GitHubAppConfig,
++} from "./github-app";
+ 
+ export { verifyInternalToken, generateInternalToken } from "./internal";
+diff --git a/packages/control-plane/src/routes/repos.ts b/packages/control-plane/src/routes/repos.ts
+index c7757a2..6729db3 100644
+--- a/packages/control-plane/src/routes/repos.ts
++++ b/packages/control-plane/src/routes/repos.ts
+@@ -11,6 +11,8 @@ import type {
+   RepoMetadata,
+ } from "@open-inspect/shared";
+ import { SourceControlProviderError } from "../source-control";
++import { resolveScmProviderFromEnv } from "../source-control";
++import { listRepositoriesAcrossInstallations } from "../auth/github-app";
+ import { createLogger } from "../logger";
+ import {
+   type Route,
+@@ -24,10 +26,26 @@ import {
+ 
+ const logger = createLogger("router:repos");
+ 
+-const REPOS_CACHE_KEY = "repos:list";
++const REPOS_CACHE_KEY = "repos:list:v2";
+ const REPOS_CACHE_FRESH_MS = 5 * 60 * 1000; // Serve without revalidation for 5 minutes
+ const REPOS_CACHE_KV_TTL_SECONDS = 3600; // Keep stale data in KV for 1 hour
+ 
++async function listRepos(
++  env: Env,
++  fallbackListRepositories: () => Promise<InstallationRepository[]>,
++  cacheStore: ReturnType<typeof createKvCacheStore>
++): Promise<InstallationRepository[]> {
++  if (resolveScmProviderFromEnv(env.SCM_PROVIDER) !== "github") {
++    return fallbackListRepositories();
++  }
++
++  const result = await listRepositoriesAcrossInstallations(env, {
++    cacheStore,
++    userAgent: env.APP_NAME,
++  });
++  return result.repos;
++}
++
+ /**
+  * Cached repos list structure stored in KV.
+  */
+@@ -48,7 +66,7 @@ async function refreshReposCache(env: Env, traceId?: string): Promise<void> {
+ 
+   let repos: InstallationRepository[];
+   try {
+-    repos = await provider.listRepositories();
++    repos = await listRepos(env, provider.listRepositories.bind(provider), cacheStore);
+ 
+     logger.info("Repo fetch completed", {
+       trace_id: traceId,
+@@ -161,7 +179,9 @@ async function handleListRepos(
+ 
+   let repos: InstallationRepository[];
+   try {
+-    repos = await ctx.metrics.time("scm_api", () => provider.listRepositories());
++    repos = await ctx.metrics.time("scm_api", () =>
++      listRepos(env, provider.listRepositories.bind(provider), cacheStore)
++    );
+   } catch (e) {
+     if (e instanceof SourceControlProviderError && e.errorType === "permanent" && !e.httpStatus) {
+       return error("SCM provider not configured", 500);
+diff --git a/packages/control-plane/src/routes/shared.ts b/packages/control-plane/src/routes/shared.ts
+index aa13c48..d439c68 100644
+--- a/packages/control-plane/src/routes/shared.ts
++++ b/packages/control-plane/src/routes/shared.ts
+@@ -6,7 +6,7 @@ import type { CorrelationContext } from "../logger";
+ import type { RequestMetrics } from "../db/instrumented-d1";
+ import type { Env } from "../types";
+ import { createKvCacheStore, resolveAppName } from "@open-inspect/shared";
+-import { getGitHubAppConfig } from "../auth/github-app";
++import { getGitHubAppConfig, resolveInstallationIdForOwner } from "../auth/github-app";
+ import type { Logger } from "../logger";
+ import {
+   createSourceControlProvider,
+@@ -76,6 +76,8 @@ export function createRouteSourceControlProvider(env: Env): SourceControlProvide
+     provider,
+     github: {
+       appConfig: appConfig ?? undefined,
++      appConfigForOwner: (owner) =>
++        getGitHubAppConfig(env, resolveInstallationIdForOwner(env, owner)),
+       cacheStore: createKvCacheStore(env.REPOS_CACHE),
+       userAgent,
+     },
+diff --git a/packages/control-plane/src/session/durable-object.ts b/packages/control-plane/src/session/durable-object.ts
+index ae537ca..96b46e0 100644
+--- a/packages/control-plane/src/session/durable-object.ts
++++ b/packages/control-plane/src/session/durable-object.ts
+@@ -12,7 +12,11 @@ import { initSchema } from "./schema";
+ import { buildSessionInternalUrl, SessionInternalPaths } from "./contracts";
+ import { resolveAppName, timingSafeEqual } from "@open-inspect/shared";
+ import { generateId, hashToken, encryptToken, decryptToken } from "../auth/crypto";
+-import { getGitHubAppConfig, getCachedInstallationToken } from "../auth/github-app";
++import {
++  getGitHubAppConfig,
++  getCachedInstallationToken,
++  resolveInstallationIdForOwner,
++} from "../auth/github-app";
+ import { createModalClient } from "../sandbox/client";
+ import { createDaytonaRestClient } from "../sandbox/daytona-rest-client";
+ import { createModalProvider } from "../sandbox/providers/modal-provider";
+@@ -540,6 +544,8 @@ export class SessionDO extends DurableObject<Env> {
+       provider,
+       github: {
+         appConfig: appConfig ?? undefined,
++        appConfigForOwner: (owner) =>
++          getGitHubAppConfig(this.env, resolveInstallationIdForOwner(this.env, owner)),
+         cacheStore: createKvCacheStore(this.env.REPOS_CACHE),
+       },
+     });
+@@ -580,18 +586,29 @@ export class SessionDO extends DurableObject<Env> {
+             });
+ 
+             const scmProvider = resolveScmProviderFromEnv(this.env.SCM_PROVIDER);
+-            const appConfig = getGitHubAppConfig(this.env);
++            const appConfigForSession = () => {
++              const session = this.getSession();
++              if (!session) {
++                return null;
++              }
++              return getGitHubAppConfig(
++                this.env,
++                resolveInstallationIdForOwner(this.env, session.repo_owner)
++              );
++            };
+ 
+             const getCloneToken: () => Promise<string | null> =
+               scmProvider === "gitlab"
+                 ? () => Promise.resolve(this.env.GITLAB_ACCESS_TOKEN ?? null)
+-                : appConfig
+-                  ? () =>
+-                      getCachedInstallationToken(appConfig, {
+-                        cacheStore: createKvCacheStore(this.env.REPOS_CACHE),
+-                        userAgent: resolveAppName(this.env),
+-                      })
+-                  : () => Promise.resolve(null);
++                : async () => {
++                    const appConfig = appConfigForSession();
++                    return appConfig
++                      ? getCachedInstallationToken(appConfig, {
++                          cacheStore: createKvCacheStore(this.env.REPOS_CACHE),
++                          userAgent: resolveAppName(this.env),
++                        })
++                      : null;
++                  };
+ 
+             return createDaytonaProvider(
+               daytonaClient,
+diff --git a/packages/control-plane/src/session/pull-request-service.ts b/packages/control-plane/src/session/pull-request-service.ts
+index 6b273a8..2f7e19d 100644
+--- a/packages/control-plane/src/session/pull-request-service.ts
++++ b/packages/control-plane/src/session/pull-request-service.ts
+@@ -100,7 +100,10 @@ export class SessionPullRequestService {
+ 
+       let pushAuth: GitPushAuthContext;
+       try {
+-        pushAuth = await this.deps.sourceControlProvider.generatePushAuth();
++        pushAuth = await this.deps.sourceControlProvider.generatePushAuth({
++          owner: session.repo_owner,
++          name: session.repo_name,
++        });
+         this.deps.log.info("Generated fresh push auth token");
+       } catch (error) {
+         this.deps.log.error("Failed to generate push auth", {
+diff --git a/packages/control-plane/src/source-control/providers/github-provider.ts b/packages/control-plane/src/source-control/providers/github-provider.ts
+index 5e74f84..467d47d 100644
+--- a/packages/control-plane/src/source-control/providers/github-provider.ts
++++ b/packages/control-plane/src/source-control/providers/github-provider.ts
+@@ -45,15 +45,24 @@ export class GitHubSourceControlProvider implements SourceControlProvider {
+   readonly name = "github";
+ 
+   private readonly appConfig?: GitHubProviderConfig["appConfig"];
++  private readonly appConfigForOwner?: GitHubProviderConfig["appConfigForOwner"];
+   private readonly cacheStore?: GitHubProviderConfig["cacheStore"];
+   private readonly userAgent: string;
+ 
+   constructor(config: GitHubProviderConfig = {}) {
+     this.appConfig = config.appConfig;
++    this.appConfigForOwner = config.appConfigForOwner;
+     this.cacheStore = config.cacheStore;
+     this.userAgent = config.userAgent || USER_AGENT;
+   }
+ 
++  private resolveAppConfig(owner?: string): GitHubProviderConfig["appConfig"] | undefined {
++    if (owner && this.appConfigForOwner) {
++      return this.appConfigForOwner(owner) ?? undefined;
++    }
++    return this.appConfig;
++  }
++
+   /**
+    * Get repository information from GitHub API.
+    */
+@@ -206,7 +215,8 @@ export class GitHubSourceControlProvider implements SourceControlProvider {
+    * Check whether a repository is accessible to the GitHub App installation.
+    */
+   async checkRepositoryAccess(config: GetRepositoryConfig): Promise<RepositoryAccessResult | null> {
+-    if (!this.appConfig) {
++    const appConfig = this.resolveAppConfig(config.owner);
++    if (!appConfig) {
+       throw new SourceControlProviderError(
+         "GitHub App not configured - cannot check repository access",
+         "permanent"
+@@ -214,7 +224,7 @@ export class GitHubSourceControlProvider implements SourceControlProvider {
+     }
+ 
+     try {
+-      const repo = await getInstallationRepository(this.appConfig, config.owner, config.name, {
++      const repo = await getInstallationRepository(appConfig, config.owner, config.name, {
+         cacheStore: this.cacheStore,
+         userAgent: this.userAgent,
+       });
+@@ -266,7 +276,8 @@ export class GitHubSourceControlProvider implements SourceControlProvider {
+    * List branches for a repository.
+    */
+   async listBranches(config: GetRepositoryConfig): Promise<{ name: string }[]> {
+-    if (!this.appConfig) {
++    const appConfig = this.resolveAppConfig(config.owner);
++    if (!appConfig) {
+       throw new SourceControlProviderError(
+         "GitHub App not configured - cannot list branches",
+         "permanent"
+@@ -274,7 +285,7 @@ export class GitHubSourceControlProvider implements SourceControlProvider {
+     }
+ 
+     try {
+-      return await listRepositoryBranches(this.appConfig, config.owner, config.name, {
++      return await listRepositoryBranches(appConfig, config.owner, config.name, {
+         cacheStore: this.cacheStore,
+         userAgent: this.userAgent,
+       });
+@@ -290,8 +301,9 @@ export class GitHubSourceControlProvider implements SourceControlProvider {
+   /**
+    * Generate authentication for git push operations using GitHub App.
+    */
+-  async generatePushAuth(): Promise<GitPushAuthContext> {
+-    if (!this.appConfig) {
++  async generatePushAuth(config?: GetRepositoryConfig): Promise<GitPushAuthContext> {
++    const appConfig = this.resolveAppConfig(config?.owner);
++    if (!appConfig) {
+       throw new SourceControlProviderError(
+         "GitHub App not configured - cannot generate push auth",
+         "permanent"
+@@ -299,7 +311,7 @@ export class GitHubSourceControlProvider implements SourceControlProvider {
+     }
+ 
+     try {
+-      const token = await getCachedInstallationToken(this.appConfig, {
++      const token = await getCachedInstallationToken(appConfig, {
+         cacheStore: this.cacheStore,
+         userAgent: this.userAgent,
+       });
+diff --git a/packages/control-plane/src/source-control/providers/types.ts b/packages/control-plane/src/source-control/providers/types.ts
+index 9b095ff..691614f 100644
+--- a/packages/control-plane/src/source-control/providers/types.ts
++++ b/packages/control-plane/src/source-control/providers/types.ts
+@@ -11,6 +11,8 @@ import type { CacheStore } from "@open-inspect/shared";
+ export interface GitHubProviderConfig {
+   /** GitHub App configuration (required for push auth) */
+   appConfig?: GitHubAppConfig;
++  /** Resolve the installation-specific GitHub App config for a repo owner. */
++  appConfigForOwner?: (owner: string) => GitHubAppConfig | null;
+   /** Cache store for caching installation tokens */
+   cacheStore?: CacheStore;
+   /** User-Agent value sent on outbound GitHub API requests */
+diff --git a/packages/control-plane/src/source-control/types.ts b/packages/control-plane/src/source-control/types.ts
+index 031c381..a2ff53a 100644
+--- a/packages/control-plane/src/source-control/types.ts
++++ b/packages/control-plane/src/source-control/types.ts
+@@ -281,7 +281,7 @@ export interface SourceControlProvider {
+    * @returns Git push authentication context with app token
+    * @throws SourceControlProviderError
+    */
+-  generatePushAuth(): Promise<GitPushAuthContext>;
++  generatePushAuth(config?: GetRepositoryConfig): Promise<GitPushAuthContext>;
+ 
+   /**
+    * Build provider-specific URL for manual pull request creation.
+diff --git a/packages/control-plane/src/types.ts b/packages/control-plane/src/types.ts
+index ac9b638..8646390 100644
+--- a/packages/control-plane/src/types.ts
++++ b/packages/control-plane/src/types.ts
+@@ -68,6 +68,7 @@ export interface Env {
+   GITHUB_APP_ID?: string;
+   GITHUB_APP_PRIVATE_KEY?: string;
+   GITHUB_APP_INSTALLATION_ID?: string;
++  GITHUB_APP_INSTALLATION_MAP?: string;
+ 
+   // GitLab secrets (for git operations and API access when SCM_PROVIDER=gitlab)
+   GITLAB_ACCESS_TOKEN?: string;

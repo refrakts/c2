@@ -31,6 +31,9 @@ To toggle patches on for a project, set `patches = true` on its entry in
 
 ## Patches
 
+For the multi-GitHub-App-installation experiment, see
+[`MULTI-INSTALLATION.md`](./MULTI-INSTALLATION.md).
+
 ### `0001-make-backend-configurable.patch`
 
 Removes the hardcoded `bucket`, `key`, and `region` values from `backend.tf`

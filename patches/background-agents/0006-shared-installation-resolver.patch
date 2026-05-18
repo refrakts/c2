@@ -1,0 +1,81 @@
+diff --git a/packages/shared/src/github/installation-map.test.ts b/packages/shared/src/github/installation-map.test.ts
+new file mode 100644
+index 0000000..660432e
+--- /dev/null
++++ b/packages/shared/src/github/installation-map.test.ts
+@@ -0,0 +1,28 @@
++import { describe, expect, it } from "vitest";
++import { parseInstallationMap, resolveInstallationId } from "./installation-map";
++
++describe("parseInstallationMap", () => {
++  it("returns an empty map for missing or invalid JSON", () => {
++    expect(parseInstallationMap(undefined).size).toBe(0);
++    expect(parseInstallationMap("not json").size).toBe(0);
++  });
++
++  it("lowercases keys and ignores non-string values", () => {
++    const map = parseInstallationMap('{"Acme":"123","bad":456}');
++
++    expect(map.get("acme")).toBe("123");
++    expect(map.has("bad")).toBe(false);
++  });
++});
++
++describe("resolveInstallationId", () => {
++  it("falls back to the default installation for an empty map", () => {
++    expect(resolveInstallationId("acme", new Map(), "999")).toBe("999");
++  });
++
++  it("matches owners case-insensitively", () => {
++    const map = parseInstallationMap('{"acme":"123"}');
++
++    expect(resolveInstallationId("Acme", map, "999")).toBe("123");
++  });
++});
+diff --git a/packages/shared/src/github/installation-map.ts b/packages/shared/src/github/installation-map.ts
+new file mode 100644
+index 0000000..e07b65a
+--- /dev/null
++++ b/packages/shared/src/github/installation-map.ts
+@@ -0,0 +1,32 @@
++export function parseInstallationMap(raw: string | undefined): Map<string, string> {
++  if (!raw) {
++    return new Map();
++  }
++
++  let parsed: unknown;
++  try {
++    parsed = JSON.parse(raw);
++  } catch {
++    return new Map();
++  }
++
++  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
++    return new Map();
++  }
++
++  const result = new Map<string, string>();
++  for (const [owner, installationId] of Object.entries(parsed)) {
++    if (typeof installationId === "string") {
++      result.set(owner.toLowerCase(), installationId);
++    }
++  }
++  return result;
++}
++
++export function resolveInstallationId(
++  owner: string,
++  map: Map<string, string>,
++  defaultInstallationId: string
++): string {
++  return map.get(owner.toLowerCase()) ?? defaultInstallationId;
++}
+diff --git a/packages/shared/src/index.ts b/packages/shared/src/index.ts
+index 48d4cd3..1609959 100644
+--- a/packages/shared/src/index.ts
++++ b/packages/shared/src/index.ts
+@@ -13,3 +13,4 @@ export * from "./logger";
+ export * from "./cache-store";
+ export * from "./app-name";
+ export * from "./slack";
++export * from "./github/installation-map";

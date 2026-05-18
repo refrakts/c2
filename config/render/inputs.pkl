@@ -17,6 +17,7 @@ local baseFields = new Mapping {
   ["github_client_secret"] = d.github.app.clientSecret
   ["github_app_id"] = d.github.app.appId
   ["github_app_installation_id"] = d.github.app.installationId
+  ["github_app_installation_map"] = d.github.app.installations
   ["github_app_private_key"] = d.github.app.privateKey
 
   // API keys

@@ -5,6 +5,7 @@ class App {
   clientSecret: String(length > 20)
   appId: String(matches(Regex(#"^\d+$"#)))
   installationId: String(matches(Regex(#"^\d+$"#)))
+  installations: Mapping<String, String(matches(Regex(#"^\d+$"#)))> = new Mapping {}
 
   /// PKCS#8 PEM. Convert from PKCS#1 with:
   ///   openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in key.pem
