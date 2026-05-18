@@ -2,6 +2,22 @@
 - name: Load b-a inputs (for deterministic URL construction)
   ansible.builtin.set_fact:
     ba_inputs: "{{ lookup('file', inputs_json) | from_json }}"
+    tf_state: "{{ lookup('file', state_json) | from_json }}"
+
+- name: Verify background-agents has been deployed
+  ansible.builtin.command:
+    cmd: terraform state list
+    chdir: "{{ background_agents_tf_dir }}"
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ tf_state.access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ tf_state.secret_key }}"
+    AWS_REGION: auto
+  register: ba_state_list
+  changed_when: false
+  failed_when: >-
+    ba_state_list.rc != 0 or
+    'cloudflare_worker' not in ba_state_list.stdout or
+    'cloudflare_workers_deployment' not in ba_state_list.stdout
 
 - name: Compute b-a control plane host
   ansible.builtin.set_fact:

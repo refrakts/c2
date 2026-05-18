@@ -25,7 +25,7 @@
 
 - name: Read projects list from config.pkl
   ansible.builtin.command:
-    cmd: "pkl eval -f json {{ repo_root }}/config/render/projects.pkl"
+    cmd: "pkl eval -f json {{ config_render_root }}/projects.pkl"
   register: projects_eval
   changed_when: false
 

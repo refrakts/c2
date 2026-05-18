@@ -3,6 +3,8 @@
 node = "22"
 python = "3.12"
 uv = "latest"
+pipx = "latest"
+pnpm = "latest"
 "npm:wrangler" = "latest"
 "pipx:modal" = "latest"
 

@@ -1,16 +1,12 @@
 ---
-- name: Compute terraform path
-  ansible.builtin.set_fact:
-    ba_tf_dir: "{{ work_root }}/background-agents/terraform/environments/production"
-
 - name: Load state (for env)
   ansible.builtin.set_fact:
     tf_state: "{{ lookup('file', state_json) | from_json }}"
 
 - name: Terraform plan
   ansible.builtin.command:
-    cmd: terraform plan -input=false -var-file=terraform.tfvars
-    chdir: "{{ ba_tf_dir }}"
+    cmd: "terraform plan {{ terraform_input_args }} -var-file={{ terraform_var_file }}"
+    chdir: "{{ background_agents_tf_dir }}"
   environment:
     AWS_ACCESS_KEY_ID: "{{ tf_state.access_key }}"
     AWS_SECRET_ACCESS_KEY: "{{ tf_state.secret_key }}"

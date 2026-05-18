@@ -1,44 +1,32 @@
 ---
-- name: Compute background-agents work_dir
-  ansible.builtin.set_fact:
-    ba_work_dir: "{{ work_root }}/background-agents"
-
 - name: Install npm dependencies
   ansible.builtin.command:
-    cmd: npm install
-    chdir: "{{ ba_work_dir }}"
+    cmd: "{{ background_agents_npm_install_cmd }}"
+    chdir: "{{ background_agents_work_dir }}"
   changed_when: true
 
-- name: Build shared package
+- name: Build background-agents packages
   ansible.builtin.command:
-    cmd: npm run build -w @open-inspect/shared
-    chdir: "{{ ba_work_dir }}"
-  changed_when: true
-
-- name: Build worker bundles
-  ansible.builtin.command:
-    cmd: npm run build -w @open-inspect/control-plane -w @open-inspect/slack-bot -w @open-inspect/github-bot
-    chdir: "{{ ba_work_dir }}"
+    cmd: "{{ item }}"
+    chdir: "{{ background_agents_work_dir }}"
+  loop: "{{ background_agents_build_commands }}"
   changed_when: true
 
 - name: Sync modal-infra Python environment
   ansible.builtin.command:
-    cmd: uv sync --frozen
-    chdir: "{{ ba_work_dir }}/packages/modal-infra"
+    cmd: "{{ background_agents_modal_sync_cmd }}"
+    chdir: "{{ background_agents_modal_dir }}"
   changed_when: true
 
 - name: Verify worker bundles exist
   ansible.builtin.stat:
-    path: "{{ ba_work_dir }}/packages/{{ item }}/dist/index.js"
+    path: "{{ background_agents_work_dir }}/packages/{{ item }}/dist/index.js"
   register: bundle_check
   failed_when: not bundle_check.stat.exists
-  loop:
-    - control-plane
-    - slack-bot
-    - github-bot
+  loop: "{{ background_agents_bundles }}"
   loop_control:
     label: "{{ item }}"
 
 - name: Bootstrap complete
   ansible.builtin.debug:
-    msg: "background-agents bootstrap finished; workers built at {{ ba_work_dir }}/packages/*/dist/"
+    msg: "background-agents bootstrap finished; workers built at {{ background_agents_work_dir }}/packages/*/dist/"
