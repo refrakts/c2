@@ -132,6 +132,13 @@ mobile {
   appJwtSigningKey = "REPLACE_ME_base64_from_openssl_rand_base64_32" // openssl rand -base64 32
 }
 
+// ─── Optional per-project overrides ───────────────────────────────────
+// projects {
+//   ["background-agents"] {
+//     tweakcnThemeUrl = "https://tweakcn.com/r/themes/neo-brutalism.json"
+//   }
+// }
+
 // ─── Pulumi state backend (Cloudflare R2) ─────────────────────────
 state {
   region = "auto"

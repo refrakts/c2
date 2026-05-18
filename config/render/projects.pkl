@@ -8,6 +8,7 @@ class ProjectEntry {
   source: String
   pin: String
   patches: Boolean
+  tweakcnThemeUrl: String?
 }
 
 projects: Listing<ProjectEntry> = new Listing {
@@ -17,6 +18,7 @@ projects: Listing<ProjectEntry> = new Listing {
       source = value.source
       pin = value.pin
       patches = value.patches
+      tweakcnThemeUrl = value.tweakcnThemeUrl
     }
   }
 }

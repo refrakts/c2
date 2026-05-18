@@ -1,6 +1,19 @@
 # c2
 Constructor²
 
+## Optional Web Theme
+
+Set a tweakcn shadcn theme URL on the `background-agents` project to apply it
+during sync before the web app builds:
+
+```pkl
+projects {
+  ["background-agents"] {
+    tweakcnThemeUrl = "https://tweakcn.com/r/themes/neo-brutalism.json"
+  }
+}
+```
+
 ## Initial deployment
 
 The first `mise run deploy` runs a two-phase Terraform apply because Cloudflare

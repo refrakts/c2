@@ -66,6 +66,15 @@
     - project.patches | default(false)
     - patches_dir_stat.stat.exists | default(false)
 
+- name: "[{{ project.name }}] Apply tweakcn theme"
+  ansible.builtin.command:
+    cmd: "npx shadcn@latest add -y -o {{ project.tweakcnThemeUrl | default('', true) | quote }}"
+    chdir: "{{ work_dir }}/packages/web"
+  changed_when: true
+  when:
+    - project.name == background_agents_project
+    - (project.tweakcnThemeUrl | default('', true) | length) > 0
+
 - name: "[{{ project.name }}] Confirm result"
   ansible.builtin.debug:
     msg: >-
