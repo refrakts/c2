@@ -1,5 +1,5 @@
 diff --git a/packages/control-plane/src/auth/github-app.ts b/packages/control-plane/src/auth/github-app.ts
-index 051f67c..dbe7888 100644
+index 051f67c..217591b 100644
 --- a/packages/control-plane/src/auth/github-app.ts
 +++ b/packages/control-plane/src/auth/github-app.ts
 @@ -11,6 +11,8 @@
@@ -60,7 +60,7 @@ index 051f67c..dbe7888 100644
  /**
   * Fetch a single repository using the GitHub App installation token.
   * Returns null if the repository is not accessible to the installation.
-@@ -625,22 +662,36 @@ export async function listRepositoryBranches(
+@@ -625,22 +662,40 @@ export async function listRepositoryBranches(
  /**
   * Check if GitHub App credentials are configured.
   */
@@ -74,10 +74,14 @@ index 051f67c..dbe7888 100644
  }
  
 +export function resolveInstallationIdForOwner(env: GitHubAppEnv, owner: string): string {
++  if (!env.GITHUB_APP_INSTALLATION_ID) {
++    throw new Error("GITHUB_APP_INSTALLATION_ID is required to resolve GitHub App installations");
++  }
++
 +  return resolveInstallationId(
 +    owner,
 +    parseInstallationMap(env.GITHUB_APP_INSTALLATION_MAP),
-+    env.GITHUB_APP_INSTALLATION_ID!
++    env.GITHUB_APP_INSTALLATION_ID
 +  );
 +}
 +
@@ -107,7 +111,7 @@ index 051f67c..dbe7888 100644
    if (!isGitHubAppConfigured(env)) {
      return null;
    }
-@@ -648,6 +699,6 @@ export function getGitHubAppConfig(env: {
+@@ -648,6 +703,6 @@ export function getGitHubAppConfig(env: {
    return {
      appId: env.GITHUB_APP_ID!,
      privateKey: env.GITHUB_APP_PRIVATE_KEY!,
