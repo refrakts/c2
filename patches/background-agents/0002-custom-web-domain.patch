@@ -1,0 +1,54 @@
+diff --git a/terraform/environments/production/locals.tf b/terraform/environments/production/locals.tf
+index c7806cf..28be0ee 100644
+--- a/terraform/environments/production/locals.tf
++++ b/terraform/environments/production/locals.tf
+@@ -9,12 +9,19 @@ locals {
+   ws_url             = "wss://${local.control_plane_host}"
+ 
+   # Web app URL depends on deployment platform
+-  web_app_url = var.web_platform == "cloudflare" ? (
+-    "https://open-inspect-web-${local.name_suffix}.${var.cloudflare_worker_subdomain}.workers.dev"
+-    ) : (
++  web_app_url = (
++    var.custom_web_app_domain != "" ? "https://${var.custom_web_app_domain}" :
++    var.web_platform == "cloudflare" ? "https://open-inspect-web-${local.name_suffix}.${var.cloudflare_worker_subdomain}.workers.dev" :
+     "https://open-inspect-${local.name_suffix}.vercel.app"
+   )
+ 
++  custom_domain_routes = <<-EOT
++    [[routes]]
++    pattern = "${var.custom_web_app_domain}"
++    custom_domain = true
++  EOT
++  web_app_custom_domain_block = var.custom_web_app_domain != "" ? local.custom_domain_routes : ""
++
+   # Worker script paths (deterministic output locations)
+   control_plane_script_path = "${var.project_root}/packages/control-plane/dist/index.js"
+   slack_bot_script_path     = "${var.project_root}/packages/slack-bot/dist/index.js"
+diff --git a/terraform/environments/production/variables.tf b/terraform/environments/production/variables.tf
+index 95a55aa..a382fb4 100644
+--- a/terraform/environments/production/variables.tf
++++ b/terraform/environments/production/variables.tf
+@@ -422,3 +422,9 @@ variable "unsafe_allow_all_users" {
+   type        = bool
+   default     = false
+ }
++
++variable "custom_web_app_domain" {
++  description = "Custom domain for the web app"
++  type        = string
++  default     = ""
++}
+diff --git a/terraform/environments/production/web-cloudflare.tf b/terraform/environments/production/web-cloudflare.tf
+index e5717a7..6706649 100644
+--- a/terraform/environments/production/web-cloudflare.tf
++++ b/terraform/environments/production/web-cloudflare.tf
+@@ -86,6 +86,8 @@ resource "local_file" "web_app_wrangler_production" {
+     [[services]]
+     binding = "CONTROL_PLANE_WORKER"
+     service = "open-inspect-control-plane-${local.name_suffix}"
++
++    ${local.web_app_custom_domain_block}
+   TOML
+ }
+ 

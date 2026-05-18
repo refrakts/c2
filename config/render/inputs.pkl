@@ -35,6 +35,7 @@ local baseFields = new Mapping {
   ["app_name"] = d.appName
   ["app_short_name"] = d.appShortName
   ["app_icon_url"] = d.appIconUrl
+  ["custom_web_app_domain"] = d.appDomain
   ["r2_media_bucket_name"] = d.r2MediaBucketName
 
   // Access control — upstream expects comma-separated strings; convert from lists

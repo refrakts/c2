@@ -20,6 +20,7 @@ deployment {
   // appName = "Open-Inspect"
   // appShortName = "Inspect"
   // appIconUrl = "/branding/logo.svg"
+  // appDomain = "my-app.com"
 
   // ─── Cloudflare (always required) ────────────────────────────────────
   cloudflare {
