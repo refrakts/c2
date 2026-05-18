@@ -15,11 +15,7 @@
 - name: Render Pkl -> JSON files
   ansible.builtin.command:
     cmd: "pkl eval -f json {{ item.src }} -o {{ item.dst }}"
-  loop:
-    - { src: "{{ repo_root }}/config/render/inputs.pkl",   dst: "{{ inputs_json }}" }
-    - { src: "{{ repo_root }}/config/render/state.pkl",    dst: "{{ state_json }}" }
-    - { src: "{{ repo_root }}/config/render/projects.pkl", dst: "{{ projects_json }}" }
-    - { src: "{{ repo_root }}/config/render/mobile-inputs.pkl", dst: "{{ mobile_inputs_json }}" }
+  loop: "{{ render_outputs }}"
   loop_control:
     label: "{{ item.dst | basename }}"
   changed_when: true

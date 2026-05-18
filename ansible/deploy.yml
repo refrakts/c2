@@ -3,17 +3,6 @@
   hosts: local
   connection: local
   gather_facts: false
-  vars:
-    repo_root: "{{ playbook_dir }}/.."
-    config_pkl: "{{ repo_root }}/config.pkl"
-    config_example_pkl: "{{ repo_root }}/config.example.pkl"
-    inputs_json: "{{ repo_root }}/deploy/inputs.json"
-    mobile_inputs_json: "{{ repo_root }}/deploy/mobile-inputs.json"
-    state_json: "{{ repo_root }}/deploy/state.json"
-    projects_json: "{{ repo_root }}/deploy/projects.json"
-    work_root: "{{ repo_root }}/.services"
-    patches_root: "{{ repo_root }}/patches"
-    deploy_dir: "{{ repo_root }}/deploy"
 
   tasks:
     - import_tasks: tasks/00-preflight.yml
@@ -39,6 +28,9 @@
     - import_tasks: tasks/03b-bootstrap-mobile.yml
       tags: [bootstrap, build, mobile]
 
+    # background-agents must be initialized/applied before constructor-mobile.
+    # A fresh BA deploy is intentionally two-phase because Durable Object and
+    # service bindings cannot reference workers that do not exist yet.
     - import_tasks: tasks/04-terraform-init.yml
       tags: [init, terraform, ba]
 
@@ -48,7 +40,8 @@
     - import_tasks: tasks/05-terraform-apply.yml
       tags: [apply, ba]
 
-    # ── mobile (depends on b-a being deployed) ──────────────────────────────────
+    # constructor-mobile consumes the BA control-plane URL, so keep all mobile
+    # Terraform work after BA readiness is verified.
     - import_tasks: tasks/06-capture-ba-outputs.yml
       tags: [mobile, capture, terraform]
 

@@ -4,19 +4,9 @@ import "project/Project.pkl"
 import "deployment/Deployment.pkl"
 import "mobile/Mobile.pkl"
 import "state/State.pkl"
+import "../defaults/projects.pkl" as ProjectDefaults
 
-projects: Mapping<String, Project.Project> = new {
-  ["background-agents"] {
-    source = "services/background-agents"
-    pin = "a8a14c46a9f0e92b99748787e7f755bca8ff96c7"
-    patches = true
-  }
-  ["constructor-mobile"] {
-    source = "services/constructor-mobile"
-    pin = "587b175f99b476acd3b8a969096b7908df04d917"
-    patches = true
-  }
-}
+projects: Mapping<String, Project.Project> = ProjectDefaults.projects
 
 deployment: Deployment.Deployment
 mobile: Mobile.Mobile
@@ -61,4 +51,3 @@ hidden _errors: List<String?> = List(
 )
 
 errors: List<String>(isEmpty) = _errors.filterNonNull() as List<String>
-

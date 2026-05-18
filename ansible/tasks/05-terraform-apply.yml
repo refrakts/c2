@@ -13,10 +13,6 @@
 #   4. On phase 2 migration-tag failures: retry with -replace on just the
 #      deployment resource (preserves version, recreates only the deployment)
 
-- name: Compute terraform paths
-  ansible.builtin.set_fact:
-    ba_tf_dir: "{{ work_root }}/background-agents/terraform/environments/production"
-
 - name: Load rendered state
   ansible.builtin.set_fact:
     tf_state: "{{ lookup('file', state_json) | from_json }}"
@@ -31,7 +27,7 @@
 - name: Check existing terraform state
   ansible.builtin.command:
     cmd: terraform state list
-    chdir: "{{ ba_tf_dir }}"
+    chdir: "{{ background_agents_tf_dir }}"
   environment: "{{ tf_env }}"
   register: tf_state_list
   changed_when: false
@@ -64,10 +60,10 @@
   ansible.builtin.command:
     cmd: >-
       terraform apply -auto-approve -input=false
-      -var-file=terraform.tfvars
+      -var-file={{ terraform_var_file }}
       -var enable_durable_object_bindings=false
       -var enable_service_bindings=false
-    chdir: "{{ ba_tf_dir }}"
+    chdir: "{{ background_agents_tf_dir }}"
   environment: "{{ tf_env }}"
   register: phase1_result
   when: is_fresh_deploy
@@ -82,9 +78,8 @@
     - name: Run apply
       ansible.builtin.command:
         cmd: >-
-          terraform apply -auto-approve -input=false
-          -var-file=terraform.tfvars
-        chdir: "{{ ba_tf_dir }}"
+          terraform apply {{ terraform_apply_args }}
+        chdir: "{{ background_agents_tf_dir }}"
       environment: "{{ tf_env }}"
       register: apply_result
       changed_when: "'Apply complete' in apply_result.stdout"
@@ -105,16 +100,16 @@
 
     - name: Recover — refresh state and re-list
       ansible.builtin.command:
-        cmd: terraform refresh -input=false -var-file=terraform.tfvars
+        cmd: "terraform refresh {{ terraform_input_args }} -var-file={{ terraform_var_file }}"
       args:
-        chdir: "{{ ba_tf_dir }}"
+        chdir: "{{ background_agents_tf_dir }}"
       environment: "{{ tf_env }}"
       changed_when: false
 
     - name: Re-check state after refresh
       ansible.builtin.command:
         cmd: terraform state list
-        chdir: "{{ ba_tf_dir }}"
+        chdir: "{{ background_agents_tf_dir }}"
       environment: "{{ tf_env }}"
       register: tf_state_list_after
       changed_when: false
@@ -123,11 +118,11 @@
       ansible.builtin.command:
         cmd: >-
           terraform apply -auto-approve -input=false
-          -var-file=terraform.tfvars
+          -var-file={{ terraform_var_file }}
           {% if 'module.control_plane_worker.cloudflare_workers_deployment.this' in tf_state_list_after.stdout %}
           -replace=module.control_plane_worker.cloudflare_workers_deployment.this
           {% endif %}
-        chdir: "{{ ba_tf_dir }}"
+        chdir: "{{ background_agents_tf_dir }}"
       environment: "{{ tf_env }}"
       register: recovery_result
       changed_when: "'Apply complete' in recovery_result.stdout"

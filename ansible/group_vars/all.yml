@@ -1,0 +1,67 @@
+---
+repo_root: "{{ playbook_dir }}/.."
+
+config_root: "{{ repo_root }}/config"
+config_pkl: "{{ repo_root }}/config.pkl"
+config_example_pkl: "{{ repo_root }}/config.example.pkl"
+config_render_root: "{{ config_root }}/render"
+
+deploy_dir: "{{ repo_root }}/deploy"
+inputs_json: "{{ deploy_dir }}/inputs.json"
+mobile_inputs_json: "{{ deploy_dir }}/mobile-inputs.json"
+state_json: "{{ deploy_dir }}/state.json"
+projects_json: "{{ deploy_dir }}/projects.json"
+
+work_root: "{{ repo_root }}/.services"
+patches_root: "{{ repo_root }}/patches"
+
+render_outputs:
+  - src: "{{ config_render_root }}/inputs.pkl"
+    dst: "{{ inputs_json }}"
+  - src: "{{ config_render_root }}/state.pkl"
+    dst: "{{ state_json }}"
+  - src: "{{ config_render_root }}/projects.pkl"
+    dst: "{{ projects_json }}"
+  - src: "{{ config_render_root }}/mobile-inputs.pkl"
+    dst: "{{ mobile_inputs_json }}"
+
+background_agents_project: background-agents
+mobile_project: constructor-mobile
+
+background_agents_work_dir: "{{ work_root }}/{{ background_agents_project }}"
+mobile_work_dir: "{{ work_root }}/{{ mobile_project }}"
+
+background_agents_tf_dir: "{{ background_agents_work_dir }}/terraform/environments/production"
+mobile_tf_dir: "{{ mobile_work_dir }}/terraform/environments/production"
+
+terraform_var_file: terraform.tfvars
+terraform_backend_file: backend.tfvars
+terraform_input_args: "-input=false"
+terraform_apply_args: "-auto-approve {{ terraform_input_args }} -var-file={{ terraform_var_file }}"
+
+terraform_stacks:
+  background_agents:
+    name: background-agents
+    tf_dir: "{{ background_agents_tf_dir }}"
+    inputs_json: "{{ inputs_json }}"
+    state_key: core_key
+  mobile:
+    name: constructor-mobile
+    tf_dir: "{{ mobile_tf_dir }}"
+    inputs_json: "{{ mobile_inputs_json }}"
+    state_key: mobile_key
+
+background_agents_npm_install_cmd: npm install
+background_agents_build_commands:
+  - npm run build -w @open-inspect/shared
+  - npm run build -w @open-inspect/control-plane -w @open-inspect/slack-bot -w @open-inspect/github-bot
+background_agents_modal_sync_cmd: uv sync --frozen
+background_agents_modal_dir: "{{ background_agents_work_dir }}/packages/modal-infra"
+background_agents_bundles:
+  - control-plane
+  - slack-bot
+  - github-bot
+
+mobile_install_cmd: pnpm install --frozen-lockfile
+mobile_build_cmd: pnpm --filter gateway run build
+mobile_gateway_bundle: "{{ mobile_work_dir }}/apps/gateway/dist/index.js"

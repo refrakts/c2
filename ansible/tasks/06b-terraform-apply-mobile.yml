@@ -1,8 +1,4 @@
 ---
-- name: Compute mobile terraform path
-  ansible.builtin.set_fact:
-    mobile_tf_dir: "{{ work_root }}/constructor-mobile/terraform/environments/production"
-
 - name: Define mobile terraform environment
   ansible.builtin.set_fact:
     mobile_tf_env:
@@ -12,7 +8,7 @@
 
 - name: Terraform apply (mobile)
   ansible.builtin.command:
-    cmd: terraform apply -auto-approve -input=false -var-file=terraform.tfvars
+    cmd: "terraform apply {{ terraform_apply_args }}"
     chdir: "{{ mobile_tf_dir }}"
   environment: "{{ mobile_tf_env }}"
   register: mobile_apply

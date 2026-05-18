@@ -1,0 +1,51 @@
+---
+- name: "Load rendered inputs and state ({{ terraform_stack_name }})"
+  ansible.builtin.set_fact:
+    terraform_inputs: "{{ lookup('file', terraform_stack_inputs_json) | from_json }}"
+    tf_state: "{{ lookup('file', state_json) | from_json }}"
+
+- name: "Render terraform.tfvars ({{ terraform_stack_name }})"
+  ansible.builtin.copy:
+    dest: "{{ terraform_stack_tf_dir }}/{{ terraform_var_file }}"
+    mode: "0600"
+    content: |
+      {% for key, value in (terraform_inputs | combine(terraform_stack_extra_tfvars | default({}))).items() %}
+      {% if value is string and '\n' in value %}
+      {{ key }} = <<-EOF
+      {{ value }}
+      EOF
+      {% else %}
+      {{ key }} = {{ value | to_json }}
+      {% endif %}
+      {% endfor %}
+
+- name: "Render backend.tfvars ({{ terraform_stack_name }})"
+  ansible.builtin.copy:
+    dest: "{{ terraform_stack_tf_dir }}/{{ terraform_backend_file }}"
+    mode: "0600"
+    content: |
+      bucket     = "{{ tf_state.bucket }}"
+      key        = "{{ tf_state[terraform_stack_state_key] }}"
+      region     = "{{ tf_state.region }}"
+      access_key = "{{ tf_state.access_key }}"
+      secret_key = "{{ tf_state.secret_key }}"
+      endpoints = {
+        s3 = "https://{{ tf_state.account_id }}.r2.cloudflarestorage.com"
+      }
+
+- name: "Terraform init ({{ terraform_stack_name }})"
+  ansible.builtin.command:
+    cmd: "terraform init -backend-config={{ terraform_backend_file }} -reconfigure {{ terraform_input_args }}"
+    chdir: "{{ terraform_stack_tf_dir }}"
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ tf_state.access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ tf_state.secret_key }}"
+    AWS_REGION: "{{ tf_state.region }}"
+  register: terraform_init_result
+  changed_when: "'Terraform has been successfully initialized' in terraform_init_result.stdout"
+
+- name: "Show init summary ({{ terraform_stack_name }})"
+  ansible.builtin.debug:
+    msg:
+      - "terraform.tfvars -> {{ terraform_stack_tf_dir }}/{{ terraform_var_file }}"
+      - "backend.tfvars  -> {{ terraform_stack_tf_dir }}/{{ terraform_backend_file }}"
