@@ -1,3 +1,5 @@
+.vscode/
+
 config.pkl
 
 deploy/inputs.json
