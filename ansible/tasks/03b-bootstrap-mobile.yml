@@ -1,0 +1,28 @@
+---
+# Bootstrap constructor-mobile: install pnpm deps, build the gateway worker.
+
+- name: Compute constructor-mobile work_dir
+  ansible.builtin.set_fact:
+    mobile_work_dir: "{{ work_root }}/constructor-mobile"
+
+- name: Install pnpm dependencies
+  ansible.builtin.command:
+    cmd: pnpm install --frozen-lockfile
+    chdir: "{{ mobile_work_dir }}"
+  changed_when: true
+
+- name: Build gateway worker
+  ansible.builtin.command:
+    cmd: pnpm --filter gateway run build
+    chdir: "{{ mobile_work_dir }}"
+  changed_when: true
+
+- name: Verify gateway bundle exists
+  ansible.builtin.stat:
+    path: "{{ mobile_work_dir }}/apps/gateway/dist/index.js"
+  register: gateway_bundle
+  failed_when: not gateway_bundle.stat.exists
+
+- name: Bootstrap complete
+  ansible.builtin.debug:
+    msg: "constructor-mobile bootstrap finished; gateway built at {{ mobile_work_dir }}/apps/gateway/dist/"

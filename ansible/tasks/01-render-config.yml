@@ -19,6 +19,7 @@
     - { src: "{{ repo_root }}/config/render/inputs.pkl",   dst: "{{ inputs_json }}" }
     - { src: "{{ repo_root }}/config/render/state.pkl",    dst: "{{ state_json }}" }
     - { src: "{{ repo_root }}/config/render/projects.pkl", dst: "{{ projects_json }}" }
+    - { src: "{{ repo_root }}/config/render/mobile-inputs.pkl", dst: "{{ mobile_inputs_json }}" }
   loop_control:
     label: "{{ item.dst | basename }}"
   changed_when: true

@@ -1,7 +1,6 @@
 open module Deployment
 
 import "Cloudflare.pkl"
-// import "Companion.pkl"
 import "Daytona.pkl"
 import "Github.pkl"
 import "Linear.pkl"
@@ -53,7 +52,4 @@ class Deployment {
   linear: Linear.Config?
 
   inferenceKeys: InferenceKeys.InferenceKeys
-  //   companion: Companion.Config
 }
-
-deployment: Deployment

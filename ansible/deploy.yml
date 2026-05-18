@@ -8,6 +8,7 @@
     config_pkl: "{{ repo_root }}/config.pkl"
     config_example_pkl: "{{ repo_root }}/config.example.pkl"
     inputs_json: "{{ repo_root }}/deploy/inputs.json"
+    mobile_inputs_json: "{{ repo_root }}/deploy/mobile-inputs.json"
     state_json: "{{ repo_root }}/deploy/state.json"
     projects_json: "{{ repo_root }}/deploy/projects.json"
     work_root: "{{ repo_root }}/.services"
@@ -15,10 +16,10 @@
     deploy_dir: "{{ repo_root }}/deploy"
 
   tasks:
-    - import_tasks: tasks/00-preflight.yml # reads config.pkl, sets `projects` fact, enforces pins
+    - import_tasks: tasks/00-preflight.yml
       tags: [preflight]
 
-    - import_tasks: tasks/01-render-config.yml # renders inputs.json, state.json
+    - import_tasks: tasks/01-render-config.yml
       tags: [render, config]
 
     - name: Sync each project
@@ -33,13 +34,26 @@
       tags: [sync, upstream]
 
     - import_tasks: tasks/03-bootstrap-ba.yml
-      tags: [bootstrap, build]
+      tags: [bootstrap, build, ba]
+
+    - import_tasks: tasks/03b-bootstrap-mobile.yml
+      tags: [bootstrap, build, mobile]
 
     - import_tasks: tasks/04-terraform-init.yml
-      tags: [init, terraform]
+      tags: [init, terraform, ba]
 
     - import_tasks: tasks/05a-terraform-plan.yml
-      tags: [plan, terraform]
+      tags: [plan, terraform, ba]
 
     - import_tasks: tasks/05-terraform-apply.yml
-      tags: [apply, terraform]
+      tags: [apply, ba]
+
+    # ── mobile (depends on b-a being deployed) ──────────────────────────────────
+    - import_tasks: tasks/06-capture-ba-outputs.yml
+      tags: [mobile, capture, terraform]
+
+    - import_tasks: tasks/06a-terraform-init-mobile.yml
+      tags: [mobile, init, terraform]
+
+    - import_tasks: tasks/06b-terraform-apply-mobile.yml
+      tags: [mobile, apply]

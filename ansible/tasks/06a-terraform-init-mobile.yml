@@ -1,0 +1,63 @@
+---
+- name: Compute mobile terraform paths
+  ansible.builtin.set_fact:
+    mobile_tf_dir: "{{ work_root }}/constructor-mobile/terraform/environments/production"
+    mobile_work_dir: "{{ work_root }}/constructor-mobile"
+
+- name: Load rendered mobile inputs and state
+  ansible.builtin.set_fact:
+    mobile_inputs: "{{ lookup('file', mobile_inputs_json) | from_json }}"
+    tf_state: "{{ lookup('file', state_json) | from_json }}"
+
+- name: Render mobile terraform.tfvars
+  ansible.builtin.copy:
+    dest: "{{ mobile_tf_dir }}/terraform.tfvars"
+    mode: "0600"
+    content: |
+      {% for key, value in mobile_inputs.items() %}
+      {% if value is string and '\n' in value %}
+      {{ key }} = <<-EOF
+      {{ value }}
+      EOF
+      {% else %}
+      {{ key }} = {{ value | to_json }}
+      {% endif %}
+      {% endfor %}
+      project_root      = {{ mobile_work_dir | to_json }}
+      control_plane_url = {{ ba_control_plane_url | to_json }}
+      ws_url            = {{ ba_ws_url | to_json }}
+
+- name: Render mobile backend.tfvars
+  ansible.builtin.copy:
+    dest: "{{ mobile_tf_dir }}/backend.tfvars"
+    mode: "0600"
+    content: |
+      bucket     = "{{ tf_state.bucket }}"
+      key        = "{{ tf_state.mobile_key }}"
+      region     = "{{ tf_state.region }}"
+      access_key = "{{ tf_state.access_key }}"
+      secret_key = "{{ tf_state.secret_key }}"
+      endpoints = {
+        s3 = "https://{{ tf_state.account_id }}.r2.cloudflarestorage.com"
+      }
+
+- name: Confirm mobile tfvars rendered
+  ansible.builtin.debug:
+    msg:
+      - "✓ terraform.tfvars → {{ mobile_tf_dir }}/terraform.tfvars"
+      - "✓ backend.tfvars  → {{ mobile_tf_dir }}/backend.tfvars"
+
+- name: Terraform init (mobile)
+  ansible.builtin.command:
+    cmd: terraform init -backend-config=backend.tfvars -reconfigure -input=false
+    chdir: "{{ mobile_tf_dir }}"
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ tf_state.access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ tf_state.secret_key }}"
+    AWS_REGION: "{{ tf_state.region }}"
+  register: mobile_tf_init
+  changed_when: "'Terraform has been successfully initialized' in mobile_tf_init.stdout"
+
+- name: Show init summary
+  ansible.builtin.debug:
+    msg: "Terraform initialized for {{ mobile_tf_dir }}"

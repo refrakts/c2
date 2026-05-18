@@ -1,0 +1,27 @@
+open module Mobile
+
+typealias Base64_32 = String(
+  this.length == 44,
+  this.endsWith("=")
+)
+
+class Mobile {
+  /// Suffix for resource names (e.g. "prod", "staging")
+  nameSuffix: String(length > 0) = "prod"
+
+  /// Worker compatibility date. Keep in sync with apps/gateway/wrangler.jsonc.
+  compatibilityDate: String(matches(Regex(#"^\d{4}-\d{2}-\d{2}$"#))) = "2026-05-16"
+
+  /// Worker compatibility flags
+  compatibilityFlags: Listing<String> = new Listing { "nodejs_compat" }
+
+  /// Cron schedules for the gateway scheduled handler. Empty list = disabled.
+  pushCron: Listing<String> = new Listing { "*/2 * * * *" }
+
+  /// Optional custom domain for the gateway. Leave null to use workers.dev.
+  customDomain: String? = null
+
+  /// Gateway-owned key used to sign short-lived app-session JWTs.
+  /// Generate: openssl rand -base64 32
+  appJwtSigningKey: Base64_32
+}

@@ -1,0 +1,44 @@
+---
+- name: Compute mobile terraform path
+  ansible.builtin.set_fact:
+    mobile_tf_dir: "{{ work_root }}/constructor-mobile/terraform/environments/production"
+
+- name: Define mobile terraform environment
+  ansible.builtin.set_fact:
+    mobile_tf_env:
+      AWS_ACCESS_KEY_ID: "{{ tf_state.access_key }}"
+      AWS_SECRET_ACCESS_KEY: "{{ tf_state.secret_key }}"
+      AWS_REGION: "{{ tf_state.region }}"
+
+- name: Terraform apply (mobile)
+  ansible.builtin.command:
+    cmd: terraform apply -auto-approve -input=false -var-file=terraform.tfvars
+    chdir: "{{ mobile_tf_dir }}"
+  environment: "{{ mobile_tf_env }}"
+  register: mobile_apply
+  changed_when: "'Apply complete' in mobile_apply.stdout"
+
+- name: Capture mobile outputs
+  ansible.builtin.command:
+    cmd: terraform output -json
+    chdir: "{{ mobile_tf_dir }}"
+  environment: "{{ mobile_tf_env }}"
+  register: mobile_outputs_raw
+  changed_when: false
+
+- name: Parse mobile outputs
+  ansible.builtin.set_fact:
+    mobile_outputs: "{{ mobile_outputs_raw.stdout | from_json }}"
+
+- name: Apply summary
+  ansible.builtin.debug:
+    msg:
+      - "✓ Mobile deployed successfully"
+      - "Gateway URL:  {{ mobile_outputs.gateway_url.value }}"
+      - "Worker name:  {{ mobile_outputs.gateway_worker_name.value }}"
+      - "KV namespace: {{ mobile_outputs.gateway_kv_namespace_id.value }}"
+      - ""
+      - "Next steps:"
+      - "  1. Add this URL to your GitHub App's callback URL whitelist:"
+      - "     {{ mobile_outputs.gateway_url.value }}/auth/github/callback"
+      - "  2. Configure your mobile client's gateway URL to: {{ mobile_outputs.gateway_url.value }}"

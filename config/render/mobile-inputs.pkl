@@ -1,0 +1,51 @@
+/// Renders config.pkl into a flat JSON consumed by constructor-mobile's
+/// Terraform.
+///
+/// Run: pkl eval -f json config/render/mobile-inputs.pkl > deploy/mobile-inputs.json
+///
+/// Cross-stack values (control_plane_url, ws_url) and project_root are
+/// injected by Ansible at tfvars render time, NOT included here.
+
+@ModuleInfo { minPklVersion = "0.31.0" }
+module MobileInputs
+
+import "../../config.pkl" as c
+local m = c.mobile
+local d = c.deployment
+
+local baseFields = new Mapping {
+  // Cloudflare (reused from b-a's config)
+  ["cloudflare_account_id"] = d.cloudflare.accountId
+  ["cloudflare_api_token"]  = d.cloudflare.apiToken
+  ["workers_dev_subdomain"] = d.cloudflare.workerSubdomain
+
+  // Mobile-specific config
+  ["name_suffix"]         = m.nameSuffix
+  ["compatibility_date"]  = m.compatibilityDate
+  ["compatibility_flags"] = m.compatibilityFlags
+  ["push_cron"]           = m.pushCron
+
+  // Reused from b-a (GitHub App = same OAuth identity)
+  ["github_oauth_client_id"]     = d.github.app.clientId
+  ["github_oauth_client_secret"] = d.github.app.clientSecret
+
+  // Mobile-only secret
+  ["app_jwt_signing_key"] = m.appJwtSigningKey
+
+  // Shared secret: must match b-a's value
+  ["internal_callback_secret"] = d.security.internalCallbackSecret
+}
+
+local domainFields: Mapping<String, Any> =
+  if (m.customDomain != null)
+    new Mapping {
+      ["gateway_custom_domain"] = m.customDomain
+      ["zone_id"]               = d.cloudflare.zoneId
+    }
+  else
+    new Mapping {}
+
+output {
+  value = (baseFields.toMap() + domainFields.toMap()).toMapping()
+  renderer = new JsonRenderer {}
+}

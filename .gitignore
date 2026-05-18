@@ -1,6 +1,7 @@
 config.pkl
 
 deploy/inputs.json
+deploy/mobile-inputs.json
 deploy/state.json
 deploy/projects.json
 

@@ -117,6 +117,15 @@ deployment {
   // r2MediaBucketName = "my-pre-created-bucket"
 }
 
+mobile {
+  // Defaults are fine; uncomment to customize
+  // nameSuffix = "prod"
+  // customDomain = "gateway.example.com"
+  // pushCron = new Listing { "*/2 * * * *" }
+
+  appJwtSigningKey = "REPLACE_ME_base64_from_openssl_rand_base64_32" // openssl rand -base64 32
+}
+
 // ─── Pulumi state backend (Cloudflare R2) ─────────────────────────
 state {
   region = "auto"
