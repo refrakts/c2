@@ -99,28 +99,31 @@ Files touched:
 > against ColeMurray/background-agents to upstream it, then dropping this
 > portion of the patch.
 
-### `0010-web-theme-switching.patch`
+### `0010-web-theme.patch`
 
-Makes the Appearance color scheme control switch the app's shadcn/next-themes
-theme, instead of only changing syntax highlighting. The existing Light/Dark/System
-selection is moved into its own Theme section, persisted through the existing
-syntax-highlight preferences storage, and still controls the matching code
+Two closely related changes to the web app's theme system, kept in one patch
+because the tweakcn override fix is only observable once the Appearance toggle
+actually drives `next-themes`.
+
+**Appearance toggle drives next-themes.** The Light/Dark/System selection in
+Settings → Appearance was previously wired only to syntax highlighting. The
+patch moves it into its own Theme section and threads it through
+`next-themes.setTheme()` so the toggle now switches the app's shadcn/next-themes
+theme as well. The selection still persists through the existing
+syntax-highlight preferences storage and still controls the matching code
 highlighting stylesheet.
+
+**Tweakcn theme overrides actually apply.** The app's built-in CSS variable
+defaults are moved into Tailwind's `base` layer. The shadcn CLI appends tweakcn
+registry themes in that same layer, so this lets those generated variables
+override the defaults during Ansible sync. Without this, the unlayered defaults
+have higher cascade priority and the applied theme does not visibly change the
+UI.
 
 Files touched:
 - `packages/web/src/components/settings/appearance-settings.tsx` — wires the
   color scheme toggle to `next-themes` via `setTheme()` and separates app theme
   controls from code highlighting theme choices
-
-### `0011-allow-tweakcn-theme-overrides.patch`
-
-Moves the app's built-in CSS variable defaults into Tailwind's `base` layer.
-The shadcn CLI appends tweakcn registry themes in that same layer, so this lets
-those generated variables override the defaults during Ansible sync. Without
-this, the unlayered defaults have higher cascade priority and the applied theme
-does not visibly change the UI.
-
-Files touched:
 - `packages/web/src/app/globals.css` — wraps the default `:root`, dark media
   query, and `.dark` variable blocks in `@layer base`
 
