@@ -119,6 +119,7 @@ deployment {
     anthropic = "sk-ant-REPLACE_ME"
     // opencode = "sk-REPLACE_ME"             // optional: enables OpenCode Go models
     // googleAiStudio = "AIzaREPLACE_ME"      // optional: enables Google Gemini models
+    // firecrawl = "fc-REPLACE_ME"            // optional: enables Firecrawl web scraping
   }
 
   // ─── Optional: override R2 media bucket name ─────────────────────────

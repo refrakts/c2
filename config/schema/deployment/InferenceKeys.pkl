@@ -9,4 +9,7 @@ class InferenceKeys {
 
   /// Google AI Studio API key for Gemini models
   googleAiStudio: String(startsWith("AIza"))?
+
+  /// Firecrawl API key for web scraping and search
+  firecrawl: String(startsWith("fc-"))?
 }

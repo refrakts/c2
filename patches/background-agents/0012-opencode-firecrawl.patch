@@ -1,0 +1,71 @@
+diff --git a/packages/modal-infra/src/images/base.py b/packages/modal-infra/src/images/base.py
+index becfe47..a9cb7e7 100644
+--- a/packages/modal-infra/src/images/base.py
++++ b/packages/modal-infra/src/images/base.py
+@@ -137,7 +137,7 @@ base_image = (
+         # Pin staged plugin to OPENCODE_VERSION so the pre-staged tree copied
+         # into .opencode/ at boot matches the globally installed plugin (#567).
+         f'echo \'{{"name":"opencode-tools","type":"module",'
+-        f'"dependencies":{{"@opencode-ai/plugin":"{OPENCODE_VERSION}"}}}}\''
++        f'"dependencies":{{"@opencode-ai/plugin":"{OPENCODE_VERSION}", "opencode-firecrawl": "latest"}}}}\''
+         " > /app/opencode-deps/package.json",
+         "cd /app/opencode-deps && npm install --ignore-scripts --no-audit --no-fund",
+     )
+@@ -165,6 +165,11 @@ base_image = (
+         "agent-browser install",
+         "agent-browser --version",
+     )
++    # Install firecrawl CLI
++    .run_commands(
++        "npm install -g firecrawl-cli",
++        "firecrawl --version || echo 'firecrawl-cli installed'",
++    )
+     # Create working directories
+     .run_commands(
+         "mkdir -p /workspace",
+diff --git a/packages/sandbox-runtime/src/sandbox_runtime/entrypoint.py b/packages/sandbox-runtime/src/sandbox_runtime/entrypoint.py
+index 63c1fcd..30f9a10 100644
+--- a/packages/sandbox-runtime/src/sandbox_runtime/entrypoint.py
++++ b/packages/sandbox-runtime/src/sandbox_runtime/entrypoint.py
+@@ -667,6 +667,9 @@ class SandboxSupervisor:
+             "permission": {"*": {"*": "allow"}},
+         }
+ 
++        if os.environ.get("FIRECRAWL_API_KEY"):
++            opencode_config["plugin"] = ["opencode-firecrawl"]
++
+         # Inject MCP servers
+         mcp_servers = self._resolve_mcp_servers()
+         if mcp_servers:
+diff --git a/terraform/environments/production/modal.tf b/terraform/environments/production/modal.tf
+index e4bb463..b0c7fdf 100644
+--- a/terraform/environments/production/modal.tf
++++ b/terraform/environments/production/modal.tf
+@@ -41,7 +41,8 @@ module "modal_app" {
+           ANTHROPIC_API_KEY = var.anthropic_api_key
+         },
+         var.opencode_api_key != "" ? { OPENCODE_API_KEY = var.opencode_api_key } : {},
+-        var.google_ai_studio_api_key != "" ? { GOOGLE_GENERATIVE_AI_API_KEY = var.google_ai_studio_api_key } : {}
++        var.google_ai_studio_api_key != "" ? { GOOGLE_GENERATIVE_AI_API_KEY = var.google_ai_studio_api_key } : {},
++        var.firecrawl_api_key != "" ? { FIRECRAWL_API_KEY = var.firecrawl_api_key } : {}
+       )
+     },
+     {
+diff --git a/terraform/environments/production/variables.tf b/terraform/environments/production/variables.tf
+index fe9b2f1..7f5d794 100644
+--- a/terraform/environments/production/variables.tf
++++ b/terraform/environments/production/variables.tf
+@@ -240,6 +240,13 @@ variable "google_ai_studio_api_key" {
+   sensitive   = true
+ }
+ 
++variable "firecrawl_api_key" {
++  description = "Firecrawl API key for web scraping and search. Leave empty to disable."
++  type        = string
++  default     = ""
++  sensitive   = true
++}
++
+ # =============================================================================
+ # Security Secrets
+ # =============================================================================
