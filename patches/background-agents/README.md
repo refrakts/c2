@@ -99,6 +99,56 @@ Files touched:
 > against ColeMurray/background-agents to upstream it, then dropping this
 > portion of the patch.
 
+### `0011-google-ai-studio.patch`
+
+Adds Google AI Studio (Gemini) as a supported model provider, mirroring the
+opt-in shape of OpenCode Go in `0003`.
+
+**API key wiring.** New `google_ai_studio_api_key` Terraform variable threaded
+into the `llm-api-keys` Modal secret via the same conditional `merge()`
+pattern. When unset, `GOOGLE_GENERATIVE_AI_API_KEY` is omitted from the secret
+entirely (the `@ai-sdk/google` provider reads that env var by default — see
+[ai-sdk.dev](https://ai-sdk.dev/providers/ai-sdk-providers/google-generative-ai)).
+The value comes from `config.pkl` → `deployment.inferenceKeys.googleAiStudio`
+(optional, default `null` → empty string).
+
+**Model registry.** Adds two Gemini models to `packages/shared/src/models.ts`:
+
+- `google/gemini-3.1-pro-preview` — Google flagship
+- `google/gemini-3.1-pro-preview-customtools` — custom-tools variant
+
+Both expose `efforts: ["low", "high"]` in `MODEL_REASONING_CONFIG` (default
+`"high"`). Google models stay opt-in (not in `DEFAULT_ENABLED_MODELS`); users
+enable them via the web settings page. `normalizeModelId` also learns to
+prefix bare `gemini-*` IDs with `google/` for backward-compat with stored
+data.
+
+**Reasoning effort plumbing.** Adds a `provider_id == "google"` branch to
+`bridge.py::_build_prompt_request_body` that translates the existing
+`reasoning_effort` string into the AI SDK's
+`providerOptions.google.thinkingConfig.thinkingLevel`. Gemini 3 models use a
+categorical level (`"minimal" | "low" | "medium" | "high"`) rather than
+OpenAI-style effort strings or Anthropic-style token budgets, so the branch
+passes the effort through 1:1 when it matches and falls back to `"high"` for
+unrelated levels (e.g. `"max"`/`"xhigh"`). `includeThoughts: true` surfaces
+reasoning summaries the same way OpenAI's `reasoningSummary: "auto"` does.
+
+Files touched:
+- `terraform/environments/production/variables.tf` — new
+  `google_ai_studio_api_key` variable, default `""`
+- `terraform/environments/production/modal.tf` — extends the
+  `llm-api-keys` `merge()` with a conditional
+  `GOOGLE_GENERATIVE_AI_API_KEY` entry
+- `packages/shared/src/models.ts` — adds `VALID_MODELS`, `MODEL_OPTIONS`,
+  `MODEL_REASONING_CONFIG` entries and a `gemini-` normalization rule
+- `packages/sandbox-runtime/src/sandbox_runtime/bridge.py` — adds the
+  `google` branch alongside the existing `anthropic`/`openai` branches
+
+> **Ordering note:** This patch depends on `0003` for its `modal.tf`,
+> `variables.tf`, and `models.ts` context (the `merge()` call and the
+> trimmed model lists must already be in place). Apply order is enforced
+> by the numeric file-name prefix.
+
 ### `0010-web-theme.patch`
 
 Two closely related changes to the web app's theme system, kept in one patch
