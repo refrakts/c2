@@ -57,6 +57,7 @@ background_agents_build_commands:
   - npm run build -w @open-inspect/control-plane -w @open-inspect/slack-bot -w @open-inspect/github-bot
 background_agents_modal_sync_cmd: uv sync --frozen
 background_agents_modal_dir: "{{ background_agents_work_dir }}/packages/modal-infra"
+background_agents_shadcn_cli: shadcn@4.7.0
 background_agents_bundles:
   - control-plane
   - slack-bot

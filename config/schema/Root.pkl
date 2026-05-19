@@ -43,11 +43,27 @@ local githubBotError: String? =
     "github.bot is enabled but webhookSecret or username is missing"
   else null
 
+hidden unsupportedTweakcnThemeProjects: Listing<String> = new Listing {
+  for (key, value in projects.toMap()) {
+    when (key != "background-agents" && value.tweakcnThemeUrl != null) {
+      key
+    }
+  }
+}
+
+local unsupportedTweakcnThemeProjectNames: String = unsupportedTweakcnThemeProjects.join(", ")
+
+local tweakcnThemeError: String? =
+  if (!unsupportedTweakcnThemeProjects.isEmpty)
+    "tweakcnThemeUrl is only supported for background-agents; remove it from: \(unsupportedTweakcnThemeProjectNames)"
+  else null
+
 hidden _errors: List<String?> = List(
   sandboxError,
   webError,
   accessControlError,
-  githubBotError
+  githubBotError,
+  tweakcnThemeError
 )
 
 errors: List<String>(isEmpty) = _errors.filterNonNull() as List<String>

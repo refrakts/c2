@@ -99,6 +99,19 @@ Files touched:
 > against ColeMurray/background-agents to upstream it, then dropping this
 > portion of the patch.
 
+### `0010-web-theme-switching.patch`
+
+Makes the Appearance color scheme control switch the app's shadcn/next-themes
+theme, instead of only changing syntax highlighting. The existing Light/Dark/System
+selection is moved into its own Theme section, persisted through the existing
+syntax-highlight preferences storage, and still controls the matching code
+highlighting stylesheet.
+
+Files touched:
+- `packages/web/src/components/settings/appearance-settings.tsx` — wires the
+  color scheme toggle to `next-themes` via `setTheme()` and separates app theme
+  controls from code highlighting theme choices
+
 ## Conventions
 
 - File names follow `NNNN-short-slug.patch` (git format-patch style)

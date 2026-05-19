@@ -9,4 +9,7 @@ class Project {
 
   /// Whether patches in patches/<name>/ should be applied to this project
   patches: Boolean = false
+
+  /// Optional tweakcn/shadcn registry theme URL to apply after patches sync
+  tweakcnThemeUrl: String(matches(Regex(#"^https://tweakcn\.com/r/themes/[a-z0-9-]+\.json$"#)))? = null
 }

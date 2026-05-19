@@ -7,6 +7,8 @@ projects: Mapping<String, Project.Project> = new {
     source = "services/background-agents"
     pin = "a8a14c46a9f0e92b99748787e7f755bca8ff96c7"
     patches = true
+    // Optional: apply a tweakcn shadcn theme during sync.
+    // tweakcnThemeUrl = "https://tweakcn.com/r/themes/neo-brutalism.json"
   }
   ["constructor-mobile"] {
     source = "services/constructor-mobile"
