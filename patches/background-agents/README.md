@@ -112,6 +112,18 @@ Files touched:
   color scheme toggle to `next-themes` via `setTheme()` and separates app theme
   controls from code highlighting theme choices
 
+### `0011-allow-tweakcn-theme-overrides.patch`
+
+Moves the app's built-in CSS variable defaults into Tailwind's `base` layer.
+The shadcn CLI appends tweakcn registry themes in that same layer, so this lets
+those generated variables override the defaults during Ansible sync. Without
+this, the unlayered defaults have higher cascade priority and the applied theme
+does not visibly change the UI.
+
+Files touched:
+- `packages/web/src/app/globals.css` — wraps the default `:root`, dark media
+  query, and `.dark` variable blocks in `@layer base`
+
 ## Conventions
 
 - File names follow `NNNN-short-slug.patch` (git format-patch style)
