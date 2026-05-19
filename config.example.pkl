@@ -117,6 +117,8 @@ deployment {
   // ─── API keys ────────────────────────────────────────────────────────
   inferenceKeys = new InferenceKeys.InferenceKeys {
     anthropic = "sk-ant-REPLACE_ME"
+    // opencode = "sk-REPLACE_ME"             // optional: enables OpenCode Go models
+    // googleAiStudio = "AIzaREPLACE_ME"      // optional: enables Google Gemini models
   }
 
   // ─── Optional: override R2 media bucket name ─────────────────────────

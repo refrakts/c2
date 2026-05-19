@@ -6,4 +6,7 @@ class InferenceKeys {
 
   /// OpenCode API key for Zen/Go
   opencode: String(startsWith("sk-"))?
+
+  /// Google AI Studio API key for Gemini models
+  googleAiStudio: String(startsWith("AIza"))?
 }
