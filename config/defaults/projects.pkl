@@ -12,7 +12,7 @@ projects: Mapping<String, Project.Project> = new {
   }
   ["constructor-mobile"] {
     source = "services/constructor-mobile"
-    pin = "9d1f0cb60b6d28edee3f8b463f73d4a54ba1159c"
+    pin = "7520b2335af51f7c2194c7983190931f89fb84f6"
     patches = true
   }
 }
