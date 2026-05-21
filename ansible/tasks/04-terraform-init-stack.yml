@@ -9,7 +9,7 @@
     dest: "{{ terraform_stack_tf_dir }}/{{ terraform_var_file }}"
     mode: "0600"
     content: |
-      {% for key, value in (terraform_inputs | combine(terraform_stack_extra_tfvars | default({}))).items() %}
+      {% for key, value in (terraform_inputs | dict2items | rejectattr('key', 'equalto', 'enabled') | items2dict | combine(terraform_stack_extra_tfvars | default({}))).items() %}
       {% if value is string and '\n' in value %}
       {{ key }} = <<-EOF
       {{ value }}

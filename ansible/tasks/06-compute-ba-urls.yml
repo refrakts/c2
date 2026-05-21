@@ -1,0 +1,14 @@
+---
+- name: Load b-a inputs and state
+  ansible.builtin.set_fact:
+    ba_inputs: "{{ lookup('file', inputs_json) | from_json }}"
+    tf_state: "{{ lookup('file', state_json) | from_json }}"
+
+- name: Compute b-a control plane host
+  ansible.builtin.set_fact:
+    ba_control_plane_host: "open-inspect-control-plane-{{ ba_inputs.deployment_name }}.{{ ba_inputs.cloudflare_worker_subdomain }}.workers.dev"
+
+- name: Derive b-a URLs from host
+  ansible.builtin.set_fact:
+    ba_control_plane_url: "https://{{ ba_control_plane_host }}"
+    ba_ws_url: "wss://{{ ba_control_plane_host }}"
