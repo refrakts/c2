@@ -29,6 +29,11 @@ description = "Render tfvars and show what would change"
 dir = "{{ config_root }}/ansible"
 run = "ansible-playbook deploy.yml --tags=render,init,plan"
 
+[tasks.undeploy-mobile]
+description = "Tear down constructor-mobile Terraform resources"
+dir = "{{ config_root }}/ansible"
+run = "ansible-playbook undeploy-mobile.yml"
+
 [settings]
 lockfile = true
 experimental = true

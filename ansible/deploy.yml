@@ -20,12 +20,14 @@
       loop_control:
         loop_var: project
         label: "{{ project.name }}"
+      when: project.name != mobile_project or (mobile_enabled | bool)
       tags: [sync, upstream]
 
     - import_tasks: tasks/03-bootstrap-ba.yml
       tags: [bootstrap, build, ba]
 
     - import_tasks: tasks/03b-bootstrap-mobile.yml
+      when: mobile_enabled | bool
       tags: [bootstrap, build, mobile]
 
     # background-agents must be initialized/applied before constructor-mobile.
@@ -43,10 +45,13 @@
     # constructor-mobile consumes the BA control-plane URL, so keep all mobile
     # Terraform work after BA readiness is verified.
     - import_tasks: tasks/06-capture-ba-outputs.yml
+      when: mobile_enabled | bool
       tags: [mobile, capture, terraform]
 
     - import_tasks: tasks/06a-terraform-init-mobile.yml
+      when: mobile_enabled | bool
       tags: [mobile, init, terraform]
 
     - import_tasks: tasks/06b-terraform-apply-mobile.yml
+      when: mobile_enabled | bool
       tags: [mobile, apply]

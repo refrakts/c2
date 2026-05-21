@@ -13,7 +13,11 @@ import "../../config.pkl" as c
 local m = c.mobile
 local d = c.deployment
 
+local defaultAppJwtSigningKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+
 local baseFields = new Mapping {
+  ["enabled"] = m.enabled
+
   // Cloudflare (reused from b-a's config)
   ["cloudflare_account_id"] = d.cloudflare.accountId
   ["cloudflare_api_token"]  = d.cloudflare.apiToken
@@ -30,7 +34,7 @@ local baseFields = new Mapping {
   ["github_oauth_client_secret"] = d.github.app.clientSecret
 
   // Mobile-only secret
-  ["app_jwt_signing_key"] = m.appJwtSigningKey
+  ["app_jwt_signing_key"] = if (m.appJwtSigningKey != null) m.appJwtSigningKey else defaultAppJwtSigningKey
 
   // Shared secret: must match b-a's value
   ["internal_callback_secret"] = d.security.internalCallbackSecret

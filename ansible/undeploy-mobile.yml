@@ -1,0 +1,32 @@
+---
+- name: Undeploy constructor-mobile stack
+  hosts: local
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - import_tasks: tasks/00-preflight.yml
+      tags: [preflight]
+
+    - import_tasks: tasks/01-render-config.yml
+      tags: [render, config]
+
+    - name: Sync constructor-mobile project
+      ansible.builtin.include_tasks:
+        file: tasks/02-sync-upstream.yml
+        apply:
+          tags: [sync, upstream, mobile]
+      loop: "{{ projects | selectattr('name', 'equalto', mobile_project) }}"
+      loop_control:
+        loop_var: project
+        label: "{{ project.name }}"
+      tags: [sync, upstream, mobile]
+
+    - import_tasks: tasks/06-compute-ba-urls.yml
+      tags: [mobile, terraform]
+
+    - import_tasks: tasks/06a-terraform-init-mobile.yml
+      tags: [mobile, init, terraform]
+
+    - import_tasks: tasks/07-terraform-destroy-mobile.yml
+      tags: [mobile, destroy]

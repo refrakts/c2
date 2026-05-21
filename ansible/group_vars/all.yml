@@ -9,6 +9,7 @@ config_render_root: "{{ config_root }}/render"
 deploy_dir: "{{ repo_root }}/deploy"
 inputs_json: "{{ deploy_dir }}/inputs.json"
 mobile_inputs_json: "{{ deploy_dir }}/mobile-inputs.json"
+mobile_enabled: false
 state_json: "{{ deploy_dir }}/state.json"
 projects_json: "{{ deploy_dir }}/projects.json"
 

@@ -1,8 +1,6 @@
 ---
-- name: Load b-a inputs (for deterministic URL construction)
-  ansible.builtin.set_fact:
-    ba_inputs: "{{ lookup('file', inputs_json) | from_json }}"
-    tf_state: "{{ lookup('file', state_json) | from_json }}"
+- name: Compute b-a URLs
+  ansible.builtin.import_tasks: 06-compute-ba-urls.yml
 
 - name: Verify background-agents has been deployed
   ansible.builtin.command:
@@ -18,15 +16,6 @@
     ba_state_list.rc != 0 or
     'cloudflare_worker' not in ba_state_list.stdout or
     'cloudflare_workers_deployment' not in ba_state_list.stdout
-
-- name: Compute b-a control plane host
-  ansible.builtin.set_fact:
-    ba_control_plane_host: "open-inspect-control-plane-{{ ba_inputs.deployment_name }}.{{ ba_inputs.cloudflare_worker_subdomain }}.workers.dev"
-
-- name: Derive b-a URLs from host
-  ansible.builtin.set_fact:
-    ba_control_plane_url: "https://{{ ba_control_plane_host }}"
-    ba_ws_url: "wss://{{ ba_control_plane_host }}"
 
 - name: Confirm captured values
   ansible.builtin.debug:

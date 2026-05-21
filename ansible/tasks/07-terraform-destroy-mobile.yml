@@ -1,0 +1,19 @@
+---
+- name: Define mobile terraform environment
+  ansible.builtin.set_fact:
+    mobile_tf_env:
+      AWS_ACCESS_KEY_ID: "{{ tf_state.access_key }}"
+      AWS_SECRET_ACCESS_KEY: "{{ tf_state.secret_key }}"
+      AWS_REGION: "{{ tf_state.region }}"
+
+- name: Terraform destroy (mobile)
+  ansible.builtin.command:
+    cmd: "terraform destroy {{ terraform_apply_args }}"
+    chdir: "{{ mobile_tf_dir }}"
+  environment: "{{ mobile_tf_env }}"
+  register: mobile_destroy
+  changed_when: "'Destroy complete' in mobile_destroy.stdout"
+
+- name: Destroy summary
+  ansible.builtin.debug:
+    msg: "constructor-mobile teardown finished"

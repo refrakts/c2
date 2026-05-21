@@ -9,7 +9,7 @@ import "../defaults/projects.pkl" as ProjectDefaults
 projects: Mapping<String, Project.Project> = ProjectDefaults.projects
 
 deployment: Deployment.Deployment
-mobile: Mobile.Mobile
+mobile: Mobile.Mobile = new {}
 state: State.State
 
 local sandboxError: String? =
@@ -43,6 +43,11 @@ local githubBotError: String? =
     "github.bot is enabled but webhookSecret or username is missing"
   else null
 
+local mobileError: String? =
+  if (mobile.enabled && mobile.appJwtSigningKey == null)
+    "mobile is enabled but appJwtSigningKey is missing"
+  else null
+
 hidden unsupportedTweakcnThemeProjects: Listing<String> = new Listing {
   for (key, value in projects.toMap()) {
     when (key != "background-agents" && value.tweakcnThemeUrl != null) {
@@ -63,6 +68,7 @@ hidden _errors: List<String?> = List(
   webError,
   accessControlError,
   githubBotError,
+  mobileError,
   tweakcnThemeError
 )
 

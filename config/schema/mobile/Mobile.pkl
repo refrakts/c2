@@ -6,6 +6,9 @@ typealias Base64_32 = String(
 )
 
 class Mobile {
+  /// Set true to provision constructor-mobile during deploy.
+  enabled: Boolean = false
+
   /// Suffix for resource names (e.g. "prod", "staging")
   nameSuffix: String(length > 0) = "prod"
 
@@ -23,5 +26,5 @@ class Mobile {
 
   /// Gateway-owned key used to sign short-lived app-session JWTs.
   /// Generate: openssl rand -base64 32
-  appJwtSigningKey: Base64_32
+  appJwtSigningKey: Base64_32? = null
 }
