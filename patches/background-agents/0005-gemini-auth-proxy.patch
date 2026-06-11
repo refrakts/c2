@@ -1,0 +1,1075 @@
+diff --git a/packages/control-plane/src/auth/google.test.ts b/packages/control-plane/src/auth/google.test.ts
+new file mode 100644
+index 0000000..c82f7eb
+--- /dev/null
++++ b/packages/control-plane/src/auth/google.test.ts
+@@ -0,0 +1,79 @@
++import { afterEach, describe, expect, it, vi } from "vitest";
++import {
++  formatGoogleRefreshParts,
++  GoogleTokenRefreshError,
++  parseGoogleRefreshParts,
++  refreshGoogleToken,
++  type GoogleTokenResponse,
++} from "./google";
++
++describe("google", () => {
++  const originalFetch = globalThis.fetch;
++
++  afterEach(() => {
++    globalThis.fetch = originalFetch;
++  });
++
++  describe("refreshGoogleToken", () => {
++    it("returns tokens on success", async () => {
++      const mockTokens: GoogleTokenResponse = {
++        access_token: "access-123",
++        refresh_token: "refresh-new",
++        expires_in: 3600,
++      };
++
++      globalThis.fetch = vi.fn().mockResolvedValue({
++        ok: true,
++        json: () => Promise.resolve(mockTokens),
++      } as unknown as Response);
++
++      const result = await refreshGoogleToken("refresh-old");
++
++      expect(result).toEqual(mockTokens);
++      expect(globalThis.fetch).toHaveBeenCalledOnce();
++
++      const [url, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
++      expect(url).toBe("https://oauth2.googleapis.com/token");
++      expect(init.method).toBe("POST");
++      expect(init.headers["Content-Type"]).toBe("application/x-www-form-urlencoded");
++      expect(init.body).toContain("grant_type=refresh_token");
++      expect(init.body).toContain("refresh_token=refresh-old");
++      expect(init.body).toContain(
++        "client_id=1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com"
++      );
++    });
++
++    it("throws GoogleTokenRefreshError on failure with status and body", async () => {
++      globalThis.fetch = vi.fn().mockResolvedValue({
++        ok: false,
++        status: 401,
++        text: () => Promise.resolve('{"error":"invalid_grant"}'),
++      } as unknown as Response);
++
++      const err = await refreshGoogleToken("refresh-expired").catch((e) => e);
++      expect(err).toBeInstanceOf(GoogleTokenRefreshError);
++      expect(err.status).toBe(401);
++      expect(err.body).toBe('{"error":"invalid_grant"}');
++    });
++  });
++
++  describe("refresh part helpers", () => {
++    it("parses packed refresh token metadata", () => {
++      expect(parseGoogleRefreshParts("refresh|project|managed")).toEqual({
++        refreshToken: "refresh",
++        projectId: "project",
++        managedProjectId: "managed",
++      });
++    });
++
++    it("formats packed refresh token metadata", () => {
++      expect(
++        formatGoogleRefreshParts({
++          refreshToken: "refresh",
++          projectId: "project",
++          managedProjectId: "managed",
++        })
++      ).toBe("refresh|project|managed");
++    });
++  });
++});
+diff --git a/packages/control-plane/src/auth/google.ts b/packages/control-plane/src/auth/google.ts
+new file mode 100644
+index 0000000..bf4ca9d
+--- /dev/null
++++ b/packages/control-plane/src/auth/google.ts
+@@ -0,0 +1,72 @@
++/**
++ * Google OAuth token refresh utilities for Antigravity/Gemini auth.
++ */
++
++const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
++const ANTIGRAVITY_CLIENT_ID = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
++const ANTIGRAVITY_CLIENT_SECRET = "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";
++
++export interface GoogleTokenResponse {
++  access_token: string;
++  expires_in?: number;
++  refresh_token?: string;
++}
++
++export interface GoogleRefreshParts {
++  refreshToken: string;
++  projectId?: string;
++  managedProjectId?: string;
++}
++
++export class GoogleTokenRefreshError extends Error {
++  constructor(
++    message: string,
++    public readonly status: number,
++    public readonly body: string
++  ) {
++    super(message);
++  }
++}
++
++export function parseGoogleRefreshParts(refresh: string): GoogleRefreshParts {
++  const [refreshToken = "", projectId = "", managedProjectId = ""] = refresh.split("|");
++  return {
++    refreshToken,
++    projectId: projectId || undefined,
++    managedProjectId: managedProjectId || undefined,
++  };
++}
++
++export function formatGoogleRefreshParts(parts: GoogleRefreshParts): string {
++  const base = `${parts.refreshToken}|${parts.projectId ?? ""}`;
++  return parts.managedProjectId ? `${base}|${parts.managedProjectId}` : base;
++}
++
++/**
++ * Refresh a Google OAuth access token using the Antigravity OAuth client.
++ */
++export async function refreshGoogleToken(refreshToken: string): Promise<GoogleTokenResponse> {
++  const response = await fetch(GOOGLE_TOKEN_URL, {
++    method: "POST",
++    headers: {
++      "Content-Type": "application/x-www-form-urlencoded",
++    },
++    body: new URLSearchParams({
++      grant_type: "refresh_token",
++      refresh_token: refreshToken,
++      client_id: ANTIGRAVITY_CLIENT_ID,
++      client_secret: ANTIGRAVITY_CLIENT_SECRET,
++    }).toString(),
++  });
++
++  if (!response.ok) {
++    const body = await response.text();
++    throw new GoogleTokenRefreshError(
++      `Google token refresh failed: ${response.status}`,
++      response.status,
++      body
++    );
++  }
++
++  return response.json() as Promise<GoogleTokenResponse>;
++}
+diff --git a/packages/control-plane/src/router.ts b/packages/control-plane/src/router.ts
+index 0389b60..82b7f46 100644
+--- a/packages/control-plane/src/router.ts
++++ b/packages/control-plane/src/router.ts
+@@ -148,6 +148,7 @@ const PUBLIC_ROUTES: RegExp[] = [
+ const SANDBOX_AUTH_ROUTES: RegExp[] = [
+   /^\/sessions\/[^/]+\/pr$/, // PR creation from sandbox
+   /^\/sessions\/[^/]+\/openai-token-refresh$/, // OpenAI token refresh from sandbox
++  /^\/sessions\/[^/]+\/google-token-refresh$/, // Google token refresh from sandbox
+   /^\/sessions\/[^/]+\/media$/, // Media upload from sandbox
+   /^\/sessions\/[^/]+\/children$/, // POST spawn, GET list
+   /^\/sessions\/[^/]+\/children\/[^/]+$/, // GET child detail
+@@ -441,6 +442,11 @@ const routes: Route[] = [
+     pattern: parsePattern("/sessions/:id/openai-token-refresh"),
+     handler: handleOpenAITokenRefresh,
+   },
++  {
++    method: "POST",
++    pattern: parsePattern("/sessions/:id/google-token-refresh"),
++    handler: handleGoogleTokenRefresh,
++  },
+   {
+     method: "POST",
+     pattern: parsePattern("/sessions/:id/ws-token"),
+@@ -1870,6 +1876,24 @@ async function handleOpenAITokenRefresh(
+   );
+ }
+ 
++async function handleGoogleTokenRefresh(
++  _request: Request,
++  env: Env,
++  match: RegExpMatchArray,
++  ctx: RequestContext
++): Promise<Response> {
++  const stub = getSessionStub(env, match);
++  if (!stub) return error("Session ID required");
++
++  return stub.fetch(
++    internalRequest(
++      buildSessionInternalUrl(SessionInternalPaths.googleTokenRefresh),
++      { method: "POST" },
++      ctx
++    )
++  );
++}
++
+ async function handleSessionWsToken(
+   request: Request,
+   env: Env,
+diff --git a/packages/control-plane/src/session/contracts.ts b/packages/control-plane/src/session/contracts.ts
+index ef7827c..0fbfabf 100644
+--- a/packages/control-plane/src/session/contracts.ts
++++ b/packages/control-plane/src/session/contracts.ts
+@@ -20,6 +20,7 @@ export const SessionInternalPaths = {
+   unarchive: "/internal/unarchive",
+   verifySandboxToken: "/internal/verify-sandbox-token",
+   openaiTokenRefresh: "/internal/openai-token-refresh",
++  googleTokenRefresh: "/internal/google-token-refresh",
+   spawnContext: "/internal/spawn-context",
+   childSummary: "/internal/child-summary",
+   updateTitle: "/internal/update-title",
+diff --git a/packages/control-plane/src/session/durable-object.ts b/packages/control-plane/src/session/durable-object.ts
+index ae537ca..043d308 100644
+--- a/packages/control-plane/src/session/durable-object.ts
++++ b/packages/control-plane/src/session/durable-object.ts
+@@ -63,6 +63,7 @@ import { RepoSecretsStore } from "../db/repo-secrets";
+ import { GlobalSecretsStore } from "../db/global-secrets";
+ import { mergeSecrets } from "../db/secrets-validation";
+ import { OpenAITokenRefreshService } from "./openai-token-refresh-service";
++import { GoogleTokenRefreshService } from "./google-token-refresh-service";
+ import { ParticipantService, getAvatarUrl } from "./participant-service";
+ import { UserScmTokenStore } from "../db/user-scm-tokens";
+ import { CallbackNotificationService } from "./callback-notification-service";
+@@ -171,6 +172,7 @@ export class SessionDO extends DurableObject<Env> {
+     unarchive: (request) => this.sessionLifecycleHandler.unarchive(request),
+     verifySandboxToken: (request) => this.sandboxHandler.verifySandboxToken(request),
+     openaiTokenRefresh: () => this.sandboxHandler.openaiTokenRefresh(),
++    googleTokenRefresh: () => this.sandboxHandler.googleTokenRefresh(),
+     spawnContext: () => this.childSessionsHandler.getSpawnContext(),
+     childSummary: () => this.childSessionsHandler.getChildSummary(),
+     cancel: () => this.sessionLifecycleHandler.cancel(),
+@@ -380,8 +382,19 @@ export class SessionDO extends DurableObject<Env> {
+           );
+           return service.refresh(session);
+         },
++        refreshGoogleToken: async (session) => {
++          const service = new GoogleTokenRefreshService(
++            this.env.DB!,
++            this.env.REPO_SECRETS_ENCRYPTION_KEY!,
++            (sessionRow) => this.ensureRepoId(sessionRow),
++            this.log
++          );
++          return service.refresh(session);
++        },
+         isOpenAISecretsConfigured: () =>
+           Boolean(this.env.DB && this.env.REPO_SECRETS_ENCRYPTION_KEY),
++        isGoogleSecretsConfigured: () =>
++          Boolean(this.env.DB && this.env.REPO_SECRETS_ENCRYPTION_KEY),
+         broadcast: (message) => this.broadcast(message),
+         generateId: () => generateId(),
+         now: () => Date.now(),
+diff --git a/packages/control-plane/src/session/google-token-refresh-service.ts b/packages/control-plane/src/session/google-token-refresh-service.ts
+new file mode 100644
+index 0000000..bbc4e72
+--- /dev/null
++++ b/packages/control-plane/src/session/google-token-refresh-service.ts
+@@ -0,0 +1,236 @@
++import {
++  formatGoogleRefreshParts,
++  GoogleTokenRefreshError,
++  parseGoogleRefreshParts,
++  refreshGoogleToken,
++} from "../auth/google";
++import { GlobalSecretsStore } from "../db/global-secrets";
++import { RepoSecretsStore } from "../db/repo-secrets";
++import type { Env } from "../types";
++import type { Logger } from "../logger";
++import type { SessionRow } from "./types";
++
++const GOOGLE_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
++
++type GoogleTokenState =
++  | {
++      type: "cached";
++      accessToken: string;
++      expiresIn: number;
++      projectId?: string;
++      managedProjectId?: string;
++    }
++  | {
++      type: "refresh";
++      refreshToken: string;
++      projectId?: string;
++      managedProjectId?: string;
++      source: "repo" | "global";
++      repoId: number;
++    };
++
++export type GoogleTokenRefreshResult =
++  | { ok: true; accessToken: string; expiresIn?: number; projectId?: string; managedProjectId?: string }
++  | { ok: false; status: number; error: string };
++
++export class GoogleTokenRefreshService {
++  constructor(
++    private readonly db: Env["DB"],
++    private readonly encryptionKey: string,
++    private readonly ensureRepoId: (session: SessionRow) => Promise<number>,
++    private readonly log: Logger
++  ) {}
++
++  async refresh(session: SessionRow): Promise<GoogleTokenRefreshResult> {
++    const readTokenState = () => this.readTokenState(session);
++
++    let tokenState: GoogleTokenState | null;
++    try {
++      tokenState = await readTokenState();
++    } catch (e) {
++      this.log.error("Failed to read Google token state from secrets", {
++        error: e instanceof Error ? e.message : String(e),
++      });
++      return { ok: false, status: 500, error: "Failed to read token state" };
++    }
++
++    if (!tokenState) {
++      return { ok: false, status: 404, error: "GOOGLE_OAUTH_REFRESH_TOKEN not configured" };
++    }
++
++    if (tokenState.type === "cached") {
++      return {
++        ok: true,
++        accessToken: tokenState.accessToken,
++        expiresIn: tokenState.expiresIn,
++        projectId: tokenState.projectId,
++        managedProjectId: tokenState.managedProjectId,
++      };
++    }
++
++    try {
++      return await this.attemptRefresh(tokenState, session);
++    } catch (e) {
++      if (e instanceof GoogleTokenRefreshError && e.status === 401) {
++        return this.handleUnauthorizedRefresh(tokenState, readTokenState, session);
++      }
++
++      this.log.error("Google token refresh failed", {
++        error: e instanceof Error ? e.message : String(e),
++      });
++      return { ok: false, status: 502, error: "Google token refresh failed" };
++    }
++  }
++
++  private getTokenStateFromSecrets(
++    secrets: Record<string, string>,
++    source: "repo" | "global",
++    repoId: number
++  ): GoogleTokenState | null {
++    if (!secrets.GOOGLE_OAUTH_REFRESH_TOKEN) {
++      return null;
++    }
++
++    const parsed = parseGoogleRefreshParts(secrets.GOOGLE_OAUTH_REFRESH_TOKEN);
++    const projectId = secrets.GOOGLE_OAUTH_PROJECT_ID || parsed.projectId;
++    const managedProjectId = secrets.GOOGLE_OAUTH_MANAGED_PROJECT_ID || parsed.managedProjectId;
++    const cachedToken = secrets.GOOGLE_OAUTH_ACCESS_TOKEN;
++    const expiresAt = parseInt(secrets.GOOGLE_OAUTH_ACCESS_TOKEN_EXPIRES_AT || "0", 10);
++    const now = Date.now();
++
++    if (cachedToken && expiresAt - now > GOOGLE_TOKEN_REFRESH_BUFFER_MS) {
++      return {
++        type: "cached",
++        accessToken: cachedToken,
++        expiresIn: Math.floor((expiresAt - now) / 1000),
++        projectId,
++        managedProjectId,
++      };
++    }
++
++    if (!parsed.refreshToken) {
++      return null;
++    }
++
++    return {
++      type: "refresh",
++      refreshToken: parsed.refreshToken,
++      projectId,
++      managedProjectId,
++      source,
++      repoId,
++    };
++  }
++
++  private async readTokenState(session: SessionRow): Promise<GoogleTokenState | null> {
++    const repoId = await this.ensureRepoId(session);
++
++    const repoStore = new RepoSecretsStore(this.db, this.encryptionKey);
++    const repoSecrets = await repoStore.getDecryptedSecrets(repoId);
++    const repoState = this.getTokenStateFromSecrets(repoSecrets, "repo", repoId);
++    if (repoState) {
++      return repoState;
++    }
++
++    const globalStore = new GlobalSecretsStore(this.db, this.encryptionKey);
++    const globalSecrets = await globalStore.getDecryptedSecrets();
++    return this.getTokenStateFromSecrets(globalSecrets, "global", repoId);
++  }
++
++  private async attemptRefresh(
++    tokenState: Extract<GoogleTokenState, { type: "refresh" }>,
++    session: SessionRow
++  ): Promise<GoogleTokenRefreshResult> {
++    const tokens = await refreshGoogleToken(tokenState.refreshToken);
++    const expiresAt = Date.now() + (tokens.expires_in ?? 3600) * 1000;
++    const refreshToken = tokens.refresh_token ?? tokenState.refreshToken;
++
++    try {
++      const secretsToWrite: Record<string, string> = {
++        GOOGLE_OAUTH_REFRESH_TOKEN: formatGoogleRefreshParts({
++          refreshToken,
++          projectId: tokenState.projectId,
++          managedProjectId: tokenState.managedProjectId,
++        }),
++        GOOGLE_OAUTH_ACCESS_TOKEN: tokens.access_token,
++        GOOGLE_OAUTH_ACCESS_TOKEN_EXPIRES_AT: String(expiresAt),
++      };
++
++      if (tokenState.projectId) {
++        secretsToWrite.GOOGLE_OAUTH_PROJECT_ID = tokenState.projectId;
++      }
++      if (tokenState.managedProjectId) {
++        secretsToWrite.GOOGLE_OAUTH_MANAGED_PROJECT_ID = tokenState.managedProjectId;
++      }
++
++      if (tokenState.source === "repo") {
++        const repoStore = new RepoSecretsStore(this.db, this.encryptionKey);
++        await repoStore.setSecrets(
++          tokenState.repoId,
++          session.repo_owner,
++          session.repo_name,
++          secretsToWrite
++        );
++      } else {
++        const globalStore = new GlobalSecretsStore(this.db, this.encryptionKey);
++        await globalStore.setSecrets(secretsToWrite);
++      }
++
++      this.log.info("Google tokens rotated and cached", {
++        source: tokenState.source,
++        has_project_id: !!tokenState.projectId,
++        has_managed_project_id: !!tokenState.managedProjectId,
++      });
++    } catch (e) {
++      this.log.error("Failed to store rotated Google tokens", {
++        error: e instanceof Error ? e.message : String(e),
++      });
++    }
++
++    return {
++      ok: true,
++      accessToken: tokens.access_token,
++      expiresIn: tokens.expires_in,
++      projectId: tokenState.projectId,
++      managedProjectId: tokenState.managedProjectId,
++    };
++  }
++
++  private async handleUnauthorizedRefresh(
++    tokenState: Extract<GoogleTokenState, { type: "refresh" }>,
++    readTokenState: () => Promise<GoogleTokenState | null>,
++    session: SessionRow
++  ): Promise<GoogleTokenRefreshResult> {
++    this.log.warn("Google refresh got 401, checking for concurrent rotation", {
++      source: tokenState.source,
++    });
++
++    await new Promise((resolve) => setTimeout(resolve, 500));
++
++    try {
++      const reread = await readTokenState();
++
++      if (reread?.type === "cached") {
++        this.log.info("Using cached Google access token from concurrent rotation");
++        return {
++          ok: true,
++          accessToken: reread.accessToken,
++          expiresIn: reread.expiresIn,
++          projectId: reread.projectId,
++          managedProjectId: reread.managedProjectId,
++        };
++      }
++
++      if (reread?.type === "refresh" && reread.refreshToken !== tokenState.refreshToken) {
++        this.log.info("Detected concurrent Google token rotation, retrying");
++        return this.attemptRefresh(reread, session);
++      }
++    } catch (retryErr) {
++      this.log.error("Retry after Google 401 also failed", {
++        error: retryErr instanceof Error ? retryErr.message : String(retryErr),
++      });
++    }
++
++    return { ok: false, status: 401, error: "Google token refresh failed: unauthorized" };
++  }
++}
+diff --git a/packages/control-plane/src/session/http/handlers/sandbox.handler.ts b/packages/control-plane/src/session/http/handlers/sandbox.handler.ts
+index 0a0d5cb..2983145 100644
+--- a/packages/control-plane/src/session/http/handlers/sandbox.handler.ts
++++ b/packages/control-plane/src/session/http/handlers/sandbox.handler.ts
+@@ -2,6 +2,7 @@ import type { Logger } from "../../../logger";
+ import type { SessionArtifact } from "@open-inspect/shared";
+ import type { ParticipantRole, SandboxEvent, ServerMessage } from "../../../types";
+ import type { OpenAITokenRefreshResult } from "../../openai-token-refresh-service";
++import type { GoogleTokenRefreshResult } from "../../google-token-refresh-service";
+ import type { SessionRepository } from "../../repository";
+ import type { SandboxRow, SessionRow } from "../../types";
+ import { assertArtifactType } from "../../artifacts";
+@@ -24,7 +25,9 @@ export interface SandboxHandlerDeps {
+   isValidSandboxToken: (token: string | null, sandbox: SandboxRow | null) => Promise<boolean>;
+   getSession: () => SessionRow | null;
+   refreshOpenAIToken: (session: SessionRow) => Promise<OpenAITokenRefreshResult>;
++  refreshGoogleToken: (session: SessionRow) => Promise<GoogleTokenRefreshResult>;
+   isOpenAISecretsConfigured: () => boolean;
++  isGoogleSecretsConfigured: () => boolean;
+   broadcast: (message: ServerMessage) => void;
+   generateId: () => string;
+   now: () => number;
+@@ -44,6 +47,7 @@ export interface SandboxHandler {
+   addParticipant: (request: Request) => Promise<Response>;
+   verifySandboxToken: (request: Request) => Promise<Response>;
+   openaiTokenRefresh: () => Promise<Response>;
++  googleTokenRefresh: () => Promise<Response>;
+ }
+ 
+ export function createSandboxHandler(deps: SandboxHandlerDeps): SandboxHandler {
+@@ -187,5 +191,31 @@ export function createSandboxHandler(deps: SandboxHandlerDeps): SandboxHandler {
+         { status: 200 }
+       );
+     },
++
++    async googleTokenRefresh(): Promise<Response> {
++      const session = deps.getSession();
++      if (!session) {
++        return Response.json({ error: "No session" }, { status: 404 });
++      }
++
++      if (!deps.isGoogleSecretsConfigured()) {
++        return Response.json({ error: "Secrets not configured" }, { status: 500 });
++      }
++
++      const result = await deps.refreshGoogleToken(session);
++      if (!result.ok) {
++        return Response.json({ error: result.error }, { status: result.status });
++      }
++
++      return Response.json(
++        {
++          access_token: result.accessToken,
++          expires_in: result.expiresIn,
++          project_id: result.projectId,
++          managed_project_id: result.managedProjectId,
++        },
++        { status: 200 }
++      );
++    },
+   };
+ }
+diff --git a/packages/control-plane/src/session/http/routes.ts b/packages/control-plane/src/session/http/routes.ts
+index e14c118..18d0c9a 100644
+--- a/packages/control-plane/src/session/http/routes.ts
++++ b/packages/control-plane/src/session/http/routes.ts
+@@ -30,6 +30,7 @@ export interface SessionInternalRouteHandlers {
+   unarchive: SessionInternalRouteHandler;
+   verifySandboxToken: SessionInternalRouteHandler;
+   openaiTokenRefresh: SessionInternalRouteHandler;
++  googleTokenRefresh: SessionInternalRouteHandler;
+   spawnContext: SessionInternalRouteHandler;
+   childSummary: SessionInternalRouteHandler;
+   cancel: SessionInternalRouteHandler;
+@@ -82,6 +83,11 @@ export function createSessionInternalRoutes(
+       path: SessionInternalPaths.openaiTokenRefresh,
+       handler: handlers.openaiTokenRefresh,
+     },
++    {
++      method: "POST",
++      path: SessionInternalPaths.googleTokenRefresh,
++      handler: handlers.googleTokenRefresh,
++    },
+     { method: "GET", path: SessionInternalPaths.spawnContext, handler: handlers.spawnContext },
+     { method: "GET", path: SessionInternalPaths.childSummary, handler: handlers.childSummary },
+     { method: "POST", path: SessionInternalPaths.cancel, handler: handlers.cancel },
+diff --git a/packages/modal-infra/src/images/base.py b/packages/modal-infra/src/images/base.py
+index becfe47..87c45ef 100644
+--- a/packages/modal-infra/src/images/base.py
++++ b/packages/modal-infra/src/images/base.py
+@@ -137,7 +137,8 @@ base_image = (
+         # Pin staged plugin to OPENCODE_VERSION so the pre-staged tree copied
+         # into .opencode/ at boot matches the globally installed plugin (#567).
+         f'echo \'{{"name":"opencode-tools","type":"module",'
+-        f'"dependencies":{{"@opencode-ai/plugin":"{OPENCODE_VERSION}"}}}}\''
++        f'"dependencies":{{"@opencode-ai/plugin":"{OPENCODE_VERSION}",'
++        f'"opencode-antigravity-auth":"1.6.0"}}}}\''
+         " > /app/opencode-deps/package.json",
+         "cd /app/opencode-deps && npm install --ignore-scripts --no-audit --no-fund",
+     )
+diff --git a/packages/sandbox-runtime/src/sandbox_runtime/entrypoint.py b/packages/sandbox-runtime/src/sandbox_runtime/entrypoint.py
+index 63c1fcd..5938887 100644
+--- a/packages/sandbox-runtime/src/sandbox_runtime/entrypoint.py
++++ b/packages/sandbox-runtime/src/sandbox_runtime/entrypoint.py
+@@ -32,6 +32,36 @@ AGENT_TOOLS_GATED_ON_ENV: dict[str, str] = {
+     "slack-notify.js": "AGENT_SLACK_NOTIFY_ENABLED",
+ }
+ 
++GOOGLE_ANTIGRAVITY_MODELS = {
++    "antigravity-gemini-3-pro": {
++        "name": "Gemini 3 Pro (Antigravity)",
++        "limit": {"context": 1048576, "output": 65535},
++        "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]},
++        "variants": {"low": {"thinkingLevel": "low"}, "high": {"thinkingLevel": "high"}},
++    },
++    "antigravity-gemini-3-flash": {
++        "name": "Gemini 3 Flash (Antigravity)",
++        "limit": {"context": 1048576, "output": 65536},
++        "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]},
++        "variants": {
++            "minimal": {"thinkingLevel": "minimal"},
++            "low": {"thinkingLevel": "low"},
++            "medium": {"thinkingLevel": "medium"},
++            "high": {"thinkingLevel": "high"},
++        },
++    },
++    "gemini-2.5-pro": {
++        "name": "Gemini 2.5 Pro (Gemini CLI)",
++        "limit": {"context": 1048576, "output": 65536},
++        "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]},
++    },
++    "gemini-2.5-flash": {
++        "name": "Gemini 2.5 Flash (Gemini CLI)",
++        "limit": {"context": 1048576, "output": 65536},
++        "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]},
++    },
++}
++
+ 
+ class SandboxSupervisor:
+     """
+@@ -383,6 +413,35 @@ class SandboxSupervisor:
+         if installed_any:
+             self.log.info("opencode.skills_installed", skills_path=str(skills_dest))
+ 
++    def _write_opencode_auth_entry(self, provider: str, entry: dict) -> None:
++        """Merge a provider auth entry into OpenCode auth.json with 0600 permissions."""
++        try:
++            auth_dir = Path.home() / ".local" / "share" / "opencode"
++            auth_dir.mkdir(parents=True, exist_ok=True)
++
++            auth_file = auth_dir / "auth.json"
++            existing = {}
++            if auth_file.exists():
++                try:
++                    existing = json.loads(auth_file.read_text())
++                except Exception:
++                    existing = {}
++
++            existing[provider] = entry
++
++            tmp_file = auth_dir / ".auth.json.tmp"
++
++            # Write to a temp file created with 0o600 from the start, then
++            # atomically rename so the target is never world-readable.
++            fd = os.open(str(tmp_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
++            try:
++                os.write(fd, json.dumps(existing).encode())
++            finally:
++                os.close(fd)
++            tmp_file.replace(auth_file)
++        except Exception as e:
++            self.log.warn("opencode_auth.setup_error", provider=provider, exc=e)
++
+     def _setup_openai_oauth(self) -> None:
+         """Write OpenCode auth.json for ChatGPT OAuth if refresh token is configured."""
+         refresh_token = os.environ.get("OPENAI_OAUTH_REFRESH_TOKEN")
+@@ -390,8 +449,6 @@ class SandboxSupervisor:
+             return
+ 
+         try:
+-            auth_dir = Path.home() / ".local" / "share" / "opencode"
+-            auth_dir.mkdir(parents=True, exist_ok=True)
+ 
+             openai_entry = {
+                 "type": "oauth",
+@@ -404,22 +461,37 @@ class SandboxSupervisor:
+             if account_id:
+                 openai_entry["accountId"] = account_id
+ 
+-            auth_file = auth_dir / "auth.json"
+-            tmp_file = auth_dir / ".auth.json.tmp"
+-
+-            # Write to a temp file created with 0o600 from the start, then
+-            # atomically rename so the target is never world-readable.
+-            fd = os.open(str(tmp_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+-            try:
+-                os.write(fd, json.dumps({"openai": openai_entry}).encode())
+-            finally:
+-                os.close(fd)
+-            tmp_file.replace(auth_file)
+-
++            self._write_opencode_auth_entry("openai", openai_entry)
+             self.log.info("openai_oauth.setup")
+         except Exception as e:
+             self.log.warn("openai_oauth.setup_error", exc=e)
+ 
++    def _setup_google_oauth(self) -> None:
++        """Write OpenCode auth.json for Google OAuth without exposing the refresh token."""
++        refresh_token = os.environ.get("GOOGLE_OAUTH_REFRESH_TOKEN")
++        if not refresh_token:
++            return
++
++        try:
++            project_id = os.environ.get("GOOGLE_OAUTH_PROJECT_ID", "")
++            managed_project_id = os.environ.get("GOOGLE_OAUTH_MANAGED_PROJECT_ID", "")
++            refresh = f"managed-by-control-plane|{project_id}"
++            if managed_project_id:
++                refresh = f"{refresh}|{managed_project_id}"
++
++            self._write_opencode_auth_entry(
++                "google",
++                {
++                    "type": "oauth",
++                    "refresh": refresh,
++                    "access": "",
++                    "expires": 0,
++                },
++            )
++            self.log.info("google_oauth.setup")
++        except Exception as e:
++            self.log.warn("google_oauth.setup_error", exc=e)
++
+     async def start_code_server(self) -> None:
+         """Start code-server for browser-based VS Code editing."""
+         password = os.environ.get("CODE_SERVER_PASSWORD")
+@@ -657,6 +729,7 @@ class SandboxSupervisor:
+     async def start_opencode(self) -> None:
+         """Start OpenCode server with configuration."""
+         self._setup_openai_oauth()
++        self._setup_google_oauth()
+         self.log.info("opencode.start")
+ 
+         # Build OpenCode config from session settings
+@@ -667,6 +740,13 @@ class SandboxSupervisor:
+             "permission": {"*": {"*": "allow"}},
+         }
+ 
++        if provider == "google" or os.environ.get("GOOGLE_OAUTH_REFRESH_TOKEN"):
++            opencode_config["provider"] = {
++                "google": {
++                    "models": GOOGLE_ANTIGRAVITY_MODELS,
++                }
++            }
++
+         # Inject MCP servers
+         mcp_servers = self._resolve_mcp_servers()
+         if mcp_servers:
+@@ -694,6 +774,14 @@ class SandboxSupervisor:
+             shutil.copy(plugin_source, plugin_dir / "codex-auth-plugin.js")
+             self.log.info("openai_oauth.plugin_deployed")
+ 
++        # Deploy Gemini/Antigravity auth proxy plugin if Google OAuth is configured
++        google_plugin_source = Path("/app/sandbox_runtime/plugins/gemini-auth-proxy-plugin.js")
++        if google_plugin_source.exists() and os.environ.get("GOOGLE_OAUTH_REFRESH_TOKEN"):
++            plugin_dir = opencode_dir / "plugins"
++            plugin_dir.mkdir(parents=True, exist_ok=True)
++            shutil.copy(google_plugin_source, plugin_dir / "gemini-auth-proxy-plugin.js")
++            self.log.info("google_oauth.plugin_deployed")
++
+         env = {
+             **os.environ,
+             "OPENCODE_CONFIG_CONTENT": json.dumps(opencode_config),
+diff --git a/packages/sandbox-runtime/src/sandbox_runtime/plugins/gemini-auth-proxy-plugin.js b/packages/sandbox-runtime/src/sandbox_runtime/plugins/gemini-auth-proxy-plugin.js
+new file mode 100644
+index 0000000..ccacc3e
+--- /dev/null
++++ b/packages/sandbox-runtime/src/sandbox_runtime/plugins/gemini-auth-proxy-plugin.js
+@@ -0,0 +1,88 @@
++/**
++ * Gemini/Antigravity Auth Proxy Plugin for Open-Inspect.
++ *
++ * Uses opencode-antigravity-auth for request transformation, but intercepts
++ * OAuth refresh for the sentinel refresh token so real Google refresh tokens
++ * stay in the control plane and never enter ephemeral sandboxes.
++ */
++
++import { GoogleOAuthPlugin } from "opencode-antigravity-auth";
++
++const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
++const SENTINEL_REFRESH_TOKEN = "managed-by-control-plane";
++
++const originalFetch = globalThis.fetch.bind(globalThis);
++
++function getSessionId() {
++  try {
++    const config = JSON.parse(process.env.SESSION_CONFIG || "{}");
++    return config.sessionId || config.session_id || "";
++  } catch {
++    return "";
++  }
++}
++
++async function refreshViaControlPlane() {
++  const controlPlaneUrl = process.env.CONTROL_PLANE_URL;
++  const authToken = process.env.SANDBOX_AUTH_TOKEN;
++  const sessionId = getSessionId();
++
++  if (!controlPlaneUrl || !authToken || !sessionId) {
++    throw new Error(
++      "Missing environment for Google token refresh: " +
++        [
++          !controlPlaneUrl && "CONTROL_PLANE_URL",
++          !authToken && "SANDBOX_AUTH_TOKEN",
++          !sessionId && "SESSION_CONFIG.sessionId",
++        ]
++          .filter(Boolean)
++          .join(", ")
++    );
++  }
++
++  const response = await originalFetch(`${controlPlaneUrl}/sessions/${sessionId}/google-token-refresh`, {
++    method: "POST",
++    headers: {
++      Authorization: `Bearer ${authToken}`,
++    },
++  });
++
++  if (!response.ok) {
++    const body = (await response.text()).slice(0, 200);
++    throw new Error(`Google token refresh failed (${response.status}): ${body}`);
++  }
++
++  return response.json();
++}
++
++async function readFormBody(init) {
++  if (!init?.body) return null;
++  if (init.body instanceof URLSearchParams) return init.body;
++  if (typeof init.body === "string") return new URLSearchParams(init.body);
++  return null;
++}
++
++globalThis.fetch = async (requestInput, init) => {
++  const parsed =
++    requestInput instanceof URL
++      ? requestInput
++      : new URL(typeof requestInput === "string" ? requestInput : requestInput.url);
++
++  if (parsed.toString() === GOOGLE_TOKEN_URL && init?.method === "POST") {
++    const body = await readFormBody(init);
++    if (
++      body?.get("grant_type") === "refresh_token" &&
++      body.get("refresh_token") === SENTINEL_REFRESH_TOKEN
++    ) {
++      const token = await refreshViaControlPlane();
++      return Response.json({
++        access_token: token.access_token,
++        expires_in: token.expires_in ?? 3600,
++      });
++    }
++  }
++
++  return originalFetch(requestInput, init);
++};
++
++export const GeminiAuthProxy = GoogleOAuthPlugin;
+diff --git a/packages/sandbox-runtime/tests/test_google_auth_plugin_setup.py b/packages/sandbox-runtime/tests/test_google_auth_plugin_setup.py
+new file mode 100644
+index 0000000..52488a5
+--- /dev/null
++++ b/packages/sandbox-runtime/tests/test_google_auth_plugin_setup.py
+@@ -0,0 +1,129 @@
++"""Tests for Google/Antigravity auth proxy plugin deployment in SandboxSupervisor."""
++
++import json
++from pathlib import Path
++from unittest.mock import AsyncMock, MagicMock, patch
++
++from sandbox_runtime.entrypoint import SandboxSupervisor
++
++
++def _make_supervisor() -> SandboxSupervisor:
++    """Create a SandboxSupervisor with default test config."""
++    with patch.dict(
++        "os.environ",
++        {
++            "SANDBOX_ID": "test-sandbox",
++            "CONTROL_PLANE_URL": "https://cp.example.com",
++            "SANDBOX_AUTH_TOKEN": "tok",
++            "REPO_OWNER": "acme",
++            "REPO_NAME": "app",
++        },
++    ):
++        return SandboxSupervisor()
++
++
++def _auth_file(tmp_path: Path) -> Path:
++    """Return the expected auth.json path under tmp_path."""
++    return tmp_path / ".local" / "share" / "opencode" / "auth.json"
++
++
++class TestGoogleAuthPluginSetup:
++    """Cases for Google/Antigravity auth proxy setup."""
++
++    def test_auth_json_uses_sentinel_token(self, tmp_path):
++        """auth.json should contain the sentinel, not the real refresh token."""
++        sup = _make_supervisor()
++
++        with (
++            patch.dict(
++                "os.environ",
++                {
++                    "GOOGLE_OAUTH_REFRESH_TOKEN": "real-refresh-token",
++                    "GOOGLE_OAUTH_PROJECT_ID": "project-123",
++                    "GOOGLE_OAUTH_MANAGED_PROJECT_ID": "managed-456",
++                },
++                clear=False,
++            ),
++            patch("pathlib.Path.home", return_value=tmp_path),
++        ):
++            sup._setup_google_oauth()
++
++        data = json.loads(_auth_file(tmp_path).read_text())
++        assert data["google"] == {
++            "type": "oauth",
++            "refresh": "managed-by-control-plane|project-123|managed-456",
++            "access": "",
++            "expires": 0,
++        }
++
++    def test_auth_json_merges_with_openai_entry(self, tmp_path):
++        """Google setup should not overwrite an existing OpenAI auth entry."""
++        sup = _make_supervisor()
++
++        with (
++            patch.dict(
++                "os.environ",
++                {
++                    "OPENAI_OAUTH_REFRESH_TOKEN": "openai-refresh",
++                    "GOOGLE_OAUTH_REFRESH_TOKEN": "google-refresh",
++                },
++                clear=False,
++            ),
++            patch("pathlib.Path.home", return_value=tmp_path),
++        ):
++            sup._setup_openai_oauth()
++            sup._setup_google_oauth()
++
++        data = json.loads(_auth_file(tmp_path).read_text())
++        assert data["openai"]["refresh"] == "managed-by-control-plane"
++        assert data["google"]["refresh"] == "managed-by-control-plane|"
++
++    async def test_start_opencode_copies_js_plugin(self, tmp_path):
++        """start_opencode() should deploy the Gemini auth proxy plugin into .opencode/plugins."""
++        sup = _make_supervisor()
++        sup.workspace_path = tmp_path / "workspace"
++        sup.workspace_path.mkdir()
++        sup.repo_path = sup.workspace_path / "app"
++
++        plugin_source = (
++            tmp_path / "app" / "sandbox_runtime" / "plugins" / "gemini-auth-proxy-plugin.js"
++        )
++        plugin_source.parent.mkdir(parents=True)
++        plugin_source.write_text("export const GeminiAuthProxy = async () => ({});")
++
++        fake_proc = MagicMock()
++        fake_proc.stdout = None
++
++        original_path = Path
++
++        with (
++            patch.dict("os.environ", {"GOOGLE_OAUTH_REFRESH_TOKEN": "real-refresh"}, clear=False),
++            patch("sandbox_runtime.entrypoint.Path") as mock_path,
++            patch("sandbox_runtime.entrypoint.shutil.copy") as mock_copy,
++            patch(
++                "sandbox_runtime.entrypoint.asyncio.create_subprocess_exec",
++                AsyncMock(return_value=fake_proc),
++            ),
++            patch(
++                "sandbox_runtime.entrypoint.asyncio.create_task",
++                side_effect=lambda coro: coro.close(),
++            ),
++        ):
++            mock_path.side_effect = lambda p: (
++                plugin_source
++                if p == "/app/sandbox_runtime/plugins/gemini-auth-proxy-plugin.js"
++                else original_path(p)
++            )
++            sup._setup_openai_oauth = MagicMock()
++            sup._setup_google_oauth = MagicMock()
++            sup._install_tools = MagicMock()
++            sup._install_skills = MagicMock()
++            sup._install_bin_scripts = MagicMock()
++            sup._wait_for_health = AsyncMock()
++
++            await sup.start_opencode()
++
++        mock_copy.assert_called_once_with(
++            plugin_source,
++            sup.workspace_path / ".opencode" / "plugins" / "gemini-auth-proxy-plugin.js",
++        )
+diff --git a/packages/shared/src/models.ts b/packages/shared/src/models.ts
+index e86bd74..265212e 100644
+--- a/packages/shared/src/models.ts
++++ b/packages/shared/src/models.ts
+@@ -65,6 +69,11 @@ export const MODEL_REASONING_CONFIG: Partial<Record<ValidModel, ModelReasoningCo
+   "openai/gpt-5.2-codex": { efforts: ["low", "medium", "high", "xhigh"], default: "high" },
+   "openai/gpt-5.3-codex": { efforts: ["low", "medium", "high", "xhigh"], default: "high" },
+   "openai/gpt-5.3-codex-spark": { efforts: ["low", "medium", "high", "xhigh"], default: "high" },
++  "google/antigravity-gemini-3-pro": { efforts: ["low", "high"], default: "high" },
++  "google/antigravity-gemini-3-flash": {
++    efforts: ["low", "medium", "high"],
++    default: "medium",
++  },
+ };
+ 
+ export interface ModelDisplayInfo {
+@@ -132,6 +141,31 @@ export const MODEL_OPTIONS: ModelCategory[] = [
+       },
+     ],
+   },
++  {
++    category: "Google",
++    models: [
++      {
++        id: "google/antigravity-gemini-3-pro",
++        name: "Gemini 3 Pro (Antigravity)",
++        description: "Google Antigravity OAuth",
++      },
++      {
++        id: "google/antigravity-gemini-3-flash",
++        name: "Gemini 3 Flash (Antigravity)",
++        description: "Fast Google Antigravity OAuth",
++      },
++      {
++        id: "google/gemini-2.5-pro",
++        name: "Gemini 2.5 Pro (Gemini CLI)",
++        description: "Google OAuth via Gemini CLI quota",
++      },
++      {
++        id: "google/gemini-2.5-flash",
++        name: "Gemini 2.5 Flash (Gemini CLI)",
++        description: "Fast Google OAuth via Gemini CLI quota",
++      },
++    ],
++  },
+   {
+     category: "OpenCode Zen",
+     models: [
+@@ -159,6 +193,8 @@ export const DEFAULT_ENABLED_MODELS: ValidModel[] = [
+   "openai/gpt-5.2-codex",
+   "openai/gpt-5.3-codex",
+   "openai/gpt-5.3-codex-spark",
++  "google/antigravity-gemini-3-pro",
++  "google/antigravity-gemini-3-flash",
+ ];
+ 
+ // === Normalization ===
+@@ -173,6 +209,9 @@ export function normalizeModelId(modelId: string): string {
+   if (modelId.includes("/")) return modelId;
+   if (modelId.startsWith("claude-")) return `anthropic/${modelId}`;
+   if (modelId.startsWith("gpt-")) return `openai/${modelId}`;
++  if (modelId.startsWith("gemini-") || modelId.startsWith("antigravity-")) {
++    return `google/${modelId}`;
++  }
+   return modelId;
+ }
+ 
